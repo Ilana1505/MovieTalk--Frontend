@@ -1,0 +1,68 @@
+/* WelcomePage.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+.welcome-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(to right, #141e30, #243b55);
+  color: white;
+  font-family: 'Poppins', sans-serif;
+}
+
+.title {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  align-self: flex-start; 
+  margin-left: 24rem;
+  background: linear-gradient(90deg, #00bcd4, #ffffff, #00bcd4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: bold;
+  animation: fadeIn 1s ease-in-out forwards;
+
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  animation: fadeIn 1.3s ease-in-out forwards;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  animation: fadeIn 1.6s ease-in-out forwards;
+
+}
+
+.btn {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  background-color: #00bcd4;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn:hover {
+   background-color: #0097a7;
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.8); 
+  transform: translateY(-2px) scale(1.05);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
