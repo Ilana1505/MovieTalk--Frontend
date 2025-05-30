@@ -12,9 +12,31 @@ const RegisterPage = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // בדיקות ולידציה בסיסיות
+    if (!fullName.trim().includes(" ")) {
+      alert("אנא הזן שם מלא (שם פרטי ושם משפחה)");
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      alert("אנא הזן כתובת אימייל תקינה");
+      return;
+    }
+
+    if (password.length < 8) {
+      alert("הסיסמה צריכה להכיל לפחות 8 תווים");
+      return;
+    }
+
     try {
-      const res = await axios.post("/auth/register", { fullName, email, password });
-      navigate("/");
+      const res = await axios.post(
+        "/auth/register",
+        { fullName, email, password },
+        { withCredentials: true } 
+      );
+      alert("נרשמת בהצלחה! כעת התחבר/י");
+      navigate("/login"); // מעבר למסך התחברות
     } catch (err: any) {
       alert(err.response?.data?.message || "Registration failed");
     }
