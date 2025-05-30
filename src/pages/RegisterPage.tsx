@@ -1,7 +1,7 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
-import React from "react";
+import { GoogleLogin } from "@react-oauth/google";
 import "./AuthPages.css";
 
 const RegisterPage = () => {
@@ -13,32 +13,44 @@ const RegisterPage = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // בדיקות ולידציה בסיסיות
+    // Basic validation
     if (!fullName.trim().includes(" ")) {
-      alert("אנא הזן שם מלא (שם פרטי ושם משפחה)");
+      alert("Please enter your full name (first and last name)");
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      alert("אנא הזן כתובת אימייל תקינה");
+      alert("Please enter a valid email address");
       return;
     }
 
     if (password.length < 8) {
-      alert("הסיסמה צריכה להכיל לפחות 8 תווים");
+      alert("Password must be at least 8 characters long");
       return;
     }
 
     try {
-      const res = await axios.post(
-        "/auth/register",
-        { fullName, email, password },
-        { withCredentials: true } 
-      );
-      alert("נרשמת בהצלחה! כעת התחבר/י");
-      navigate("/login"); // מעבר למסך התחברות
+      await axios.post("/auth/register", { fullName, email, password });
+      alert("Registration successful!");
+      navigate("/feed");
     } catch (err: any) {
-      alert(err.response?.data?.message || "Registration failed");
+      alert(err.response?.data?.error || "Registration failed");
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const res = await axios.post(
+        "/auth/login-with-google",
+        { token: credentialResponse.credential },
+        { withCredentials: true }
+      );
+
+      alert("Signed in successfully with Google!");
+      navigate("/feed");
+    } catch (err) {
+      console.error("Google sign-in failed:", err);
+      alert("Google sign-in failed");
     }
   };
 
@@ -68,6 +80,14 @@ const RegisterPage = () => {
           required
         />
         <button type="submit">Register</button>
+
+        <div style={{ marginTop: "20px" }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => alert("Google Sign-In failed")}
+            useOneTap
+          />
+        </div>
       </form>
     </div>
   );
