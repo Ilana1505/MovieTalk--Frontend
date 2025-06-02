@@ -19,7 +19,9 @@ import { useNavigate } from "react-router-dom";
 interface Post {
   _id: string;
   title: string;
-  content: string;
+  description: string;
+  review: string;
+  image?: string;
   sender: string;
 }
 
@@ -27,7 +29,9 @@ const HomePage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [description, setDescription] = useState("");
+  const [review, setReview] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -60,15 +64,25 @@ const HomePage: React.FC = () => {
   const handleCreatePost = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        "/posts",
-        { title, content },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("review", review);
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await axios.post("/posts", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       setTitle("");
-      setContent("");
+      setDescription("");
+      setReview("");
+      setImageFile(null);
       setOpen(false);
       fetchPosts();
     } catch (err) {
@@ -78,18 +92,14 @@ const HomePage: React.FC = () => {
 
   return (
     <Box
-  sx={{
-    minHeight: "100vh",
-    background: "linear-gradient(to bottom right, #cbd5e1, #a7bed3)"
-,
-    pt: 6,
-    px: 2,
-    color: "#222",
-  }}
->
-
-
-      {/* Profile Icon */}
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(to bottom right, #cbd5e1, #a7bed3)",
+        pt: 6,
+        px: 2,
+        color: "#222",
+      }}
+    >
       <IconButton
         onClick={() => navigate("/profile")}
         sx={{ position: "absolute", top: 20, left: 20 }}
@@ -113,28 +123,27 @@ const HomePage: React.FC = () => {
       </IconButton>
 
       <Container maxWidth="sm">
-       <Typography
-  variant="h3"
-  align="center"
-  gutterBottom
-  sx={{
-    fontWeight: 900,
-    fontSize: "2.8rem",
-    fontFamily: "'Orbitron', sans-serif",
-    color: "#fff",
-    textShadow: "0 3px 6px rgba(0,0,0,0.3)",
-    mb: 6,
-    letterSpacing: 1,
-    animation: "fadeIn 1.2s ease-in-out",
-    "@keyframes fadeIn": {
-      from: { opacity: 0, transform: "translateY(-20px)" },
-      to: { opacity: 1, transform: "translateY(0)" },
-    },
-  }}
->
-  <span style={{ color: "#243b55" }}>MovieTalk</span> Community
-</Typography>
-
+        <Typography
+          variant="h3"
+          align="center"
+          gutterBottom
+          sx={{
+            fontWeight: 900,
+            fontSize: "2.8rem",
+            fontFamily: "'Orbitron', sans-serif",
+            color: "#fff",
+            textShadow: "0 3px 6px rgba(0,0,0,0.3)",
+            mb: 6,
+            letterSpacing: 1,
+            animation: "fadeIn 1.2s ease-in-out",
+            "@keyframes fadeIn": {
+              from: { opacity: 0, transform: "translateY(-20px)" },
+              to: { opacity: 1, transform: "translateY(0)" },
+            },
+          }}
+        >
+          <span style={{ color: "#243b55" }}>MovieTalk</span> Community
+        </Typography>
 
         <Stack spacing={2}>
           {posts.map((post) => (
@@ -143,43 +152,60 @@ const HomePage: React.FC = () => {
               elevation={4}
               sx={{
                 p: 2,
-                borderRadius: 2,
-                backgroundColor: "#ffffffee",
+                borderRadius: 3,
+                backgroundColor: "#f9f9f9",
                 color: "#111",
-                minHeight: "60px",
-                transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                  transform: "scale(1.015)",
-                  boxShadow: "0px 6px 18px rgba(0,0,0,0.2)",
-                },
+                display: "flex",
+                gap: 2,
+                alignItems: "flex-start",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               }}
             >
-              <Typography variant="subtitle1" fontWeight={700}>
-                {post.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {post.content}
-              </Typography>
+              {post.image && (
+                <Box
+                  component="img"
+                  src={`http://localhost:3000${post.image}`}
+                  alt={post.title}
+                  sx={{
+                    width: 100,
+                    height: 140,
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                   {post.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  <strong>Description:</strong> {post.description}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Review:</strong> {post.review}
+                </Typography>
+              </Box>
             </Paper>
           ))}
         </Stack>
       </Container>
 
       <Fab
-  aria-label="add"
-  onClick={() => setOpen(true)}
-  sx={{
-    position: "fixed",
-    bottom: 24,
-    right: 24,
-    bgcolor: "#243b55",
-    color: "#fff",
-    "&:hover": { bgcolor: "#222" }, // כהה יותר בעת ריחוף
-  }}
->
-  <AddIcon />
-</Fab>
-
+        aria-label="add"
+        onClick={() => setOpen(true)}
+        sx={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          bgcolor: "#243b55",
+          color: "#fff",
+          "&:hover": { bgcolor: "#222" },
+        }}
+      >
+        <AddIcon />
+      </Fab>
 
       <Modal open={open} onClose={() => setOpen(false)}>
         <Box
@@ -208,21 +234,36 @@ const HomePage: React.FC = () => {
           />
           <TextField
             fullWidth
-            label="Content"
-            multiline
-            rows={4}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Review"
+            multiline
+            rows={3}
+            value={review}
+            onChange={(e) => setReview(e.target.value)}
+            margin="normal"
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+            }}
+            style={{ marginTop: 16 }}
           />
           <Button
             variant="contained"
             onClick={handleCreatePost}
             fullWidth
-            disabled={!title.trim() || !content.trim()}
+            disabled={!title.trim() || !description.trim() || !review.trim()}
             sx={{
               mt: 2,
-              bgcolor: "#00bcd4",
+              bgcolor: "#243b55",
               color: "#fff",
               "&:hover": { bgcolor: "#0097a7" },
             }}
