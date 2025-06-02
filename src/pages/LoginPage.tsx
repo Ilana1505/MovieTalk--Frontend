@@ -14,6 +14,7 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       const res = await axios.post("/auth/login", { email, password });
+      localStorage.removeItem("token");
       localStorage.setItem("token", res.data.accessToken);
       navigate("/feed");
     } catch (err: any) {
@@ -30,6 +31,7 @@ const LoginPage = () => {
         { withCredentials: true }
       );
 
+      localStorage.removeItem("token");
       localStorage.setItem("token", res.data.accessToken);
       alert("Signed in successfully with Google!");
       navigate("/feed");
