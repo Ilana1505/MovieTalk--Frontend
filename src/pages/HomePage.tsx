@@ -14,6 +14,8 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useNavigate } from "react-router-dom";
 
 interface Post {
@@ -135,11 +137,6 @@ const HomePage: React.FC = () => {
             textShadow: "0 3px 6px rgba(0,0,0,0.3)",
             mb: 6,
             letterSpacing: 1,
-            animation: "fadeIn 1.2s ease-in-out",
-            "@keyframes fadeIn": {
-              from: { opacity: 0, transform: "translateY(-20px)" },
-              to: { opacity: 1, transform: "translateY(0)" },
-            },
           }}
         >
           <span style={{ color: "#243b55" }}>MovieTalk</span> Community
@@ -178,7 +175,7 @@ const HomePage: React.FC = () => {
               )}
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                   {post.title}
+                  {post.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" mb={1}>
                   <strong>Description:</strong> {post.description}
@@ -186,6 +183,41 @@ const HomePage: React.FC = () => {
                 <Typography variant="body2" color="text.secondary">
                   <strong>Review:</strong> {post.review}
                 </Typography>
+
+               <Box sx={{ mt: 4, display: "flex", gap: 1 }}>
+  <Button
+    variant="outlined"
+    size="small"
+    startIcon={<FavoriteBorderIcon />}
+    sx={{
+      borderColor: "#e91e63",
+      color: "#e91e63",
+      fontWeight: 600,
+      borderRadius: 999,
+      px: 2,
+      textTransform: "none",
+    }}
+  >
+    1
+  </Button>
+  <Button
+    variant="outlined"
+    size="small"
+    startIcon={<ChatBubbleOutlineIcon />}
+    sx={{
+      borderColor: "#607d8b",
+      color: "#607d8b",
+      fontWeight: 600,
+      borderRadius: 999,
+      px: 2,
+      textTransform: "none",
+    }}
+  >
+    Comment
+  </Button>
+</Box>
+
+
               </Box>
             </Paper>
           ))}
