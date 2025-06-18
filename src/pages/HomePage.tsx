@@ -15,6 +15,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +26,8 @@ interface Post {
   review: string;
   image?: string;
   sender: string;
+  likes?: string[];
+
 }
 
 const HomePage: React.FC = () => {
@@ -35,12 +38,21 @@ const HomePage: React.FC = () => {
   const [review, setReview] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string>("");
+  const [commentCounts, setCommentCounts] = useState<{ [postId: string]: number }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchPosts();
-    fetchUserProfile();
+    const loadProfileThenPosts = async () => {
+      await fetchUserProfile(); // קודם נטען את המשתמש
+      await fetchPosts();       // רק אז את הפוסטים
+    };
+    loadProfileThenPosts();
   }, []);
+
+  useEffect(() => {
+    if (posts.length > 0) fetchCommentCounts();
+  }, [posts]);
 
   const fetchPosts = async () => {
     try {
@@ -58,10 +70,53 @@ const HomePage: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProfilePicture(res.data.profilePicture);
+      setUserId(res.data._id);
     } catch (err) {
       console.error("Failed to fetch user profile", err);
     }
   };
+
+  const fetchCommentCounts = async () => {
+    const counts: { [key: string]: number } = {};
+    for (const post of posts) {
+      const res = await axios.get(`/comments/post/${post._id}`);
+      counts[post._id] = res.data.length;
+    }
+    setCommentCounts(counts);
+  };
+
+const handleLike = async (postId: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await axios.post(
+      `/posts/${postId}/like`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const { message, likes } = res.data;
+
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post._id === postId
+          ? {
+              ...post,
+              likes:
+                message === "Post liked"
+                  ? [...(post.likes || []), userId]
+                  : post.likes?.filter((id) => id !== userId),
+            }
+          : post
+      )
+    );
+  } catch (err) {
+    console.error("Failed to toggle like", err);
+  }
+};
+
+
 
   const handleCreatePost = async () => {
     try {
@@ -109,7 +164,7 @@ const HomePage: React.FC = () => {
         {profilePicture ? (
           <Box
             component="img"
-            src={profilePicture}
+            src={profilePicture ? `http://localhost:3000${profilePicture}` : undefined}
             alt="Profile"
             sx={{
               width: 44,
@@ -143,84 +198,93 @@ const HomePage: React.FC = () => {
         </Typography>
 
         <Stack spacing={2}>
-          {posts.map((post) => (
-            <Paper
-              key={post._id}
-              elevation={4}
-              sx={{
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: "#f9f9f9",
-                color: "#111",
-                display: "flex",
-                gap: 2,
-                alignItems: "flex-start",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              }}
-            >
-              {post.image && (
-                <Box
-                  component="img"
-                  src={`http://localhost:3000${post.image}`}
-                  alt={post.title}
-                  sx={{
-                    width: 100,
-                    height: 140,
-                    objectFit: "cover",
-                    borderRadius: 2,
-                    boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  {post.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" mb={1}>
-                  <strong>Description:</strong> {post.description}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Review:</strong> {post.review}
-                </Typography>
+          {posts.map((post) => {
+            const hasLiked = post.likes?.includes(userId);
+            return (
+              <Paper
+                key={post._id}
+                elevation={4}
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  backgroundColor: "#f9f9f9",
+                  color: "#111",
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "flex-start",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}
+              >
+                {post.image && (
+                  <Box
+                    component="img"
+                    src={`http://localhost:3000${post.image}`}
+                    alt={post.title}
+                    sx={{
+                      width: 100,
+                      height: 140,
+                      objectFit: "cover",
+                      borderRadius: 2,
+                      boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    {post.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mb={1}>
+                    <strong>Description:</strong> {post.description}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Review:</strong> {post.review}
+                  </Typography>
 
-               <Box sx={{ mt: 4, display: "flex", gap: 1 }}>
-  <Button
-    variant="outlined"
-    size="small"
-    startIcon={<FavoriteBorderIcon />}
-    sx={{
-      borderColor: "#e91e63",
-      color: "#e91e63",
-      fontWeight: 600,
-      borderRadius: 999,
-      px: 2,
-      textTransform: "none",
-    }}
-  >
-    1
-  </Button>
-  <Button
-    variant="outlined"
-    size="small"
-    startIcon={<ChatBubbleOutlineIcon />}
-    sx={{
-      borderColor: "#607d8b",
-      color: "#607d8b",
-      fontWeight: 600,
-      borderRadius: 999,
-      px: 2,
-      textTransform: "none",
-    }}
-  >
-    Comment
-  </Button>
-</Box>
-
-
-              </Box>
-            </Paper>
-          ))}
+                  <Box sx={{ mt: 4, display: "flex", gap: 1 }}>
+                    <Button
+                      onClick={() => handleLike(post._id)}
+                      variant="outlined"
+                      size="small"
+                      startIcon={
+                        hasLiked ? (
+                          <FavoriteIcon sx={{ color: "#e91e63" }} />
+                        ) : (
+                          <FavoriteBorderIcon sx={{ color: "#e91e63" }} />
+                        )
+                      }
+                      sx={{
+                        borderColor: "#e91e63",
+                        color: "#e91e63",
+                        fontWeight: 600,
+                        borderRadius: 999,
+                        px: 2,
+                        textTransform: "none",
+                      }}
+                    >
+                      {post.likes?.length || 0}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<ChatBubbleOutlineIcon />}
+                      onClick={() => navigate(`/post/${post._id}/comments`)}
+                      sx={{
+                        borderColor: "#607d8b",
+                        color: "#607d8b",
+                        fontWeight: 600,
+                        borderRadius: 999,
+                        px: 2,
+                        textTransform: "none",
+                      }}
+                    >
+                      ({commentCounts[post._id] || 0}) Comments
+                    </Button>
+                  </Box>
+                </Box>
+              </Paper>
+            );
+          })}
         </Stack>
       </Container>
 
@@ -239,71 +303,114 @@ const HomePage: React.FC = () => {
         <AddIcon />
       </Fab>
 
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 400,
-            bgcolor: "background.paper",
-            color: "#000",
-            boxShadow: 24,
-            p: 4,
-            borderRadius: 3,
+<Modal open={open} onClose={() => setOpen(false)}>
+  <Box
+    sx={{
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: 420,
+      bgcolor: "#edf2f7",
+      borderRadius: 4,
+      boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.25)",
+      p: 4,
+      border: "2px solid #243b55",
+    }}
+  >
+    <Typography
+      variant="h5"
+      gutterBottom
+      align="center"
+      sx={{
+        fontWeight: 700,
+        color: "#243b55",
+        mb: 2,
+        fontFamily: "'Orbitron', sans-serif",
+        letterSpacing: 1,
+      }}
+    >
+      Create New Post
+    </Typography>
+
+    <Stack spacing={2}>
+      <TextField
+        fullWidth
+        label="Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        variant="outlined"
+      />
+      <TextField
+        fullWidth
+        label="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        variant="outlined"
+      />
+      <TextField
+        fullWidth
+        label="Review"
+        multiline
+        rows={3}
+        value={review}
+        onChange={(e) => setReview(e.target.value)}
+        variant="outlined"
+      />
+
+      <Button
+        variant="outlined"
+        component="label"
+        sx={{
+          borderColor: "#243b55",
+          color: "#243b55",
+          fontWeight: 600,
+          textTransform: "none",
+          "&:hover": {
+            bgcolor: "#d9e4f5",
+            borderColor: "#243b55",
+          },
+        }}
+      >
+        Upload Image
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            if (e.target.files?.[0]) setImageFile(e.target.files[0]);
           }}
-        >
-          <Typography variant="h6" gutterBottom>
-            Create New Post
-          </Typography>
-          <TextField
-            fullWidth
-            label="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Review"
-            multiline
-            rows={3}
-            value={review}
-            onChange={(e) => setReview(e.target.value)}
-            margin="normal"
-          />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files?.[0]) setImageFile(e.target.files[0]);
-            }}
-            style={{ marginTop: 16 }}
-          />
-          <Button
-            variant="contained"
-            onClick={handleCreatePost}
-            fullWidth
-            disabled={!title.trim() || !description.trim() || !review.trim()}
-            sx={{
-              mt: 2,
-              bgcolor: "#243b55",
-              color: "#fff",
-              "&:hover": { bgcolor: "#0097a7" },
-            }}
-          >
-            Publish
-          </Button>
-        </Box>
-      </Modal>
+        />
+      </Button>
+
+      {imageFile && (
+        <Typography variant="caption" sx={{ color: "#444", pl: 1 }}>
+          Selected: {imageFile.name}
+        </Typography>
+      )}
+
+      <Button
+        variant="contained"
+        fullWidth
+        disabled={!title.trim() || !description.trim() || !review.trim()}
+        onClick={handleCreatePost}
+        sx={{
+          mt: 1,
+          bgcolor: "#243b55",
+          color: "#fff",
+          fontWeight: "bold",
+          textTransform: "uppercase",
+          letterSpacing: 1,
+          "&:hover": { bgcolor: "#1b2c3a" },
+        }}
+      >
+        Publish
+      </Button>
+    </Stack>
+  </Box>
+</Modal>
+
+
     </Box>
   );
 };
