@@ -30,8 +30,9 @@ const Transition = React.forwardRef(function Transition(
 
 type Comment = {
   _id?: string;
-  sender?: string;      
-  comment?: string;    
+  sender?: string;        
+  senderAvatar?: string;   
+  comment?: string;        
   createdAt?: string;
 };
 
@@ -40,7 +41,7 @@ interface Props {
   postId: string;
   title: string;
   onClose: () => void;
-  onCommentAdded?: () => void; 
+  onCommentAdded?: () => void;
 }
 
 function extractComments(data: any): Comment[] {
@@ -49,6 +50,13 @@ function extractComments(data: any): Comment[] {
   if (Array.isArray(data?.data)) return data.data;
   return [];
 }
+
+const toAbsolute = (url?: string) =>
+  url
+    ? url.startsWith("http")
+      ? url
+      : `http://localhost:3000${url}`
+    : undefined;
 
 const CommentsDialog: React.FC<Props> = ({
   open,
@@ -100,7 +108,7 @@ const CommentsDialog: React.FC<Props> = ({
       const token = localStorage.getItem("token");
       const res = await axios.post(
         "/comments",
-        { comment: body, postId }, 
+        { comment: body, postId },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -195,10 +203,11 @@ const CommentsDialog: React.FC<Props> = ({
                   }}
                 >
                   <ListItemAvatar>
-                    <Avatar />
+                    <Avatar src={toAbsolute(c.senderAvatar)}>
+                      {(c.sender?.[0] || "?").toUpperCase()}
+                    </Avatar>
                   </ListItemAvatar>
 
-                  {/*  מציגים שם משתמש וטקסט תגובה משדות sender/comment */}
                   <ListItemText
                     primary={
                       <Typography sx={{ fontWeight: 600 }}>

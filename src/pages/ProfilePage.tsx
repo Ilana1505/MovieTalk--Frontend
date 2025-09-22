@@ -21,12 +21,17 @@ type UserProfile = {
   profilePicture?: string | null;
 };
 
+// ממיר כתובת יחסית ("/uploads/...") לכתובת מלאה ("http://localhost:3000/uploads/...")
+const toAbsolute = (url?: string | null) =>
+  url ? (url.startsWith("http") ? url : `http://localhost:3000${url}`) : undefined;
+
 const ProfilePage = () => {
   const [user, setUser] = useState<UserProfile>({ fullName: "", email: "", phone: "" });
   const [editing, setEditing] = useState<{ field: string | null }>({ field: null });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [newPicture, setNewPicture] = useState<File | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [cacheBuster, setCacheBuster] = useState(0); // לעקיפת cache אחרי העלאה
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -79,7 +84,8 @@ const ProfilePage = () => {
         },
       });
       setNewPicture(null);
-      fetchProfile();
+      await fetchProfile();
+      setCacheBuster(Date.now()); // כדי לרענן את התמונה אם נשמר אותו שם קובץ
     } catch (e) {
       console.error("Failed to upload picture", e);
     }
@@ -101,6 +107,11 @@ const ProfilePage = () => {
       console.error("Failed to delete account", e);
     }
   };
+
+  const avatarSrc = (() => {
+    const abs = toAbsolute(profilePicture || user.profilePicture || null);
+    return abs ? `${abs}?v=${cacheBuster}` : undefined;
+  })();
 
   return (
     <Box
@@ -125,9 +136,18 @@ const ProfilePage = () => {
       >
         <Box position="relative">
           <Avatar
-            src={profilePicture || undefined}
-            sx={{ width: 80, height: 80, margin: "0 auto" }}
-          />
+            src={avatarSrc}
+            sx={{
+              width: 80,
+              height: 80,
+              margin: "0 auto",
+              objectFit: "cover",
+              border: "2px solid #e5e7eb",
+            }}
+          >
+            {(user.fullName?.[0] || "?").toUpperCase()}
+          </Avatar>
+
           <IconButton
             size="small"
             component="label"
@@ -214,7 +234,7 @@ const ProfilePage = () => {
         <Box mt={3}>
           <Button
             variant="outlined"
-            onClick={() => navigate("/my-posts")}   
+            onClick={() => navigate("/my-posts")}
             sx={{
               color: "#3b3f58",
               borderColor: "#3b3f58",
