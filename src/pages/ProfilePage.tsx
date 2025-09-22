@@ -14,52 +14,75 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ImageIcon from "@mui/icons-material/Image";
 import { useNavigate } from "react-router-dom";
 
+type UserProfile = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  profilePicture?: string | null;
+};
+
 const ProfilePage = () => {
-  const [user, setUser] = useState({ fullName: "", email: "", phone: "" });
+  const [user, setUser] = useState<UserProfile>({ fullName: "", email: "", phone: "" });
   const [editing, setEditing] = useState<{ field: string | null }>({ field: null });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [newPicture, setNewPicture] = useState<File | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const navigate = useNavigate();
-const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
-    const token = localStorage.getItem("token");
-    const res = await axios.get("/auth/check", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setUser(res.data);
-    setProfilePicture(res.data.profilePicture || null);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("/auth/check", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(res.data);
+      setProfilePicture(res.data.profilePicture || null);
+    } catch (e) {
+      console.error("Failed to load profile", e);
+    }
   };
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUser({ ...user, [editing.field!]: e.target.value });
+    if (!editing.field) return;
+    setUser({ ...user, [editing.field]: e.target.value } as UserProfile);
   };
 
   const saveChanges = async () => {
-    const token = localStorage.getItem("token");
-    await axios.put(
-      "/auth/update-profile",
-      { fullName: user.fullName, email: user.email },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setEditing({ field: null });
-    fetchProfile();
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        "/auth/update-profile",
+        { fullName: user.fullName, email: user.email },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditing({ field: null });
+      fetchProfile();
+    } catch (e) {
+      console.error("Failed to save profile", e);
+    }
   };
 
   const handlePictureUpload = async () => {
     if (!newPicture) return;
-    const formData = new FormData();
-    formData.append("image", newPicture);
-    const token = localStorage.getItem("token");
-    await axios.post("/users/upload-profile-pic", formData, {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
-    });
-    setNewPicture(null);
-    fetchProfile();
+    try {
+      const formData = new FormData();
+      formData.append("image", newPicture);
+      const token = localStorage.getItem("token");
+      await axios.post("/users/upload-profile-pic", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setNewPicture(null);
+      fetchProfile();
+    } catch (e) {
+      console.error("Failed to upload picture", e);
+    }
   };
 
   const logout = () => {
@@ -68,11 +91,15 @@ const [newPassword, setNewPassword] = useState("");
   };
 
   const deleteAccount = async () => {
-    const token = localStorage.getItem("token");
-    await axios.delete("/users/delete", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    logout();
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete("/users/delete", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      logout();
+    } catch (e) {
+      console.error("Failed to delete account", e);
+    }
   };
 
   return (
@@ -133,6 +160,7 @@ const [newPassword, setNewPassword] = useState("");
               </IconButton>
             </Typography>
           )}
+
           {editing.field === "email" ? (
             <TextField
               value={user.email}
@@ -150,36 +178,43 @@ const [newPassword, setNewPassword] = useState("");
               </IconButton>
             </Typography>
           )}
+
           {editing.field === "password" ? (
-  <TextField
-    type="password"
-    value={newPassword}
-    onChange={(e) => setNewPassword(e.target.value)}
-    onBlur={async () => {
-      const token = localStorage.getItem("token");
-      await axios.put("/auth/change-password", { password: newPassword }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setEditing({ field: null });
-      setNewPassword("");
-    }}
-    autoFocus
-    sx={{ mt: 1 }}
-  />
-) : (
-  <Typography color="text.secondary">
-    ********
-    <IconButton size="small" onClick={() => setEditing({ field: "password" })}>
-      <EditIcon fontSize="small" />
-    </IconButton>
-  </Typography>
-)}
+            <TextField
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              onBlur={async () => {
+                try {
+                  const token = localStorage.getItem("token");
+                  await axios.put(
+                    "/auth/change-password",
+                    { password: newPassword },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  setEditing({ field: null });
+                  setNewPassword("");
+                } catch (e) {
+                  console.error("Failed to change password", e);
+                }
+              }}
+              autoFocus
+              sx={{ mt: 1 }}
+            />
+          ) : (
+            <Typography color="text.secondary">
+              ********
+              <IconButton size="small" onClick={() => setEditing({ field: "password" })}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Typography>
+          )}
         </Box>
 
         <Box mt={3}>
           <Button
             variant="outlined"
-            onClick={() => navigate("/my-posts")}
+            onClick={() => navigate("/my-posts")}   
             sx={{
               color: "#3b3f58",
               borderColor: "#3b3f58",

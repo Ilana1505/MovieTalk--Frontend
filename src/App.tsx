@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import FeedPage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
+import MyPostsPage from "./pages/MyPostsPage";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/feed" element={<FeedPage />} />
         <Route path="/profile" element={<ProfilePage />} /> 
+        <Route path="/my-posts" element={<MyPostsPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -32,7 +32,8 @@ const RegisterPage = () => {
     try {
       await axios.post("/auth/register", { fullName, email, password });
       alert("Registration successful!");
-      navigate("/feed");
+      // ✅ אחרי הרשמה מוצלחת מעבירים למסך התחברות
+      navigate("/login");
     } catch (err: any) {
       alert(err.response?.data?.error || "Registration failed");
     }
