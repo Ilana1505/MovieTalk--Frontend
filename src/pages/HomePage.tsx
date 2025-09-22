@@ -18,6 +18,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useNavigate } from "react-router-dom";
+import CommentsDialog from "../components/CommentsDialog";
 
 interface Post {
   _id: string;
@@ -27,7 +28,6 @@ interface Post {
   image?: string;
   sender: string;
   likes?: string[];
-
 }
 
 const HomePage: React.FC = () => {
@@ -40,12 +40,13 @@ const HomePage: React.FC = () => {
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>("");
   const [commentCounts, setCommentCounts] = useState<{ [postId: string]: number }>({});
+  const [active, setActive] = useState<{ id: string; title: string } | null>(null); // 👈 חלונית תגובות
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadProfileThenPosts = async () => {
-      await fetchUserProfile(); // קודם נטען את המשתמש
-      await fetchPosts();       // רק אז את הפוסטים
+      await fetchUserProfile(); // קודם המשתמש
+      await fetchPosts();       // ואז הפוסטים
     };
     loadProfileThenPosts();
   }, []);
@@ -85,38 +86,34 @@ const HomePage: React.FC = () => {
     setCommentCounts(counts);
   };
 
-const handleLike = async (postId: string) => {
-  try {
-    const token = localStorage.getItem("token");
-    const res = await axios.post(
-      `/posts/${postId}/like`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+  const handleLike = async (postId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `/posts/${postId}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    const { message, likes } = res.data;
+      const { message } = res.data;
 
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post._id === postId
-          ? {
-              ...post,
-              likes:
-                message === "Post liked"
-                  ? [...(post.likes || []), userId]
-                  : post.likes?.filter((id) => id !== userId),
-            }
-          : post
-      )
-    );
-  } catch (err) {
-    console.error("Failed to toggle like", err);
-  }
-};
-
-
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId
+            ? {
+                ...post,
+                likes:
+                  message === "Post liked"
+                    ? [...(post.likes || []), userId]
+                    : (post.likes || []).filter((id) => id !== userId),
+              }
+            : post
+        )
+      );
+    } catch (err) {
+      console.error("Failed to toggle like", err);
+    }
+  };
 
   const handleCreatePost = async () => {
     try {
@@ -125,9 +122,7 @@ const handleLike = async (postId: string) => {
       formData.append("title", title);
       formData.append("description", description);
       formData.append("review", review);
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
+      if (imageFile) formData.append("image", imageFile);
 
       await axios.post("/posts", formData, {
         headers: {
@@ -146,6 +141,18 @@ const handleLike = async (postId: string) => {
       console.error("Failed to create post", err);
     }
   };
+
+  // ====== ניהול חלונית התגובות ======
+  const openComments = (post: Post) => setActive({ id: post._id, title: post.title });
+  const closeComments = () => setActive(null);
+  const bumpCommentsCount = () => {
+    if (!active) return;
+    setCommentCounts((prev) => ({
+      ...prev,
+      [active.id]: (prev[active.id] || 0) + 1,
+    }));
+  };
+  // ==================================
 
   return (
     <Box
@@ -264,11 +271,13 @@ const handleLike = async (postId: string) => {
                     >
                       {post.likes?.length || 0}
                     </Button>
+
+                    {/* 👇 במקום ניווט – פותחים חלונית תגובות */}
                     <Button
                       variant="outlined"
                       size="small"
                       startIcon={<ChatBubbleOutlineIcon />}
-                      onClick={() => navigate(`/post/${post._id}/comments`)}
+                      onClick={() => openComments(post)}
                       sx={{
                         borderColor: "#607d8b",
                         color: "#607d8b",
@@ -303,114 +312,123 @@ const handleLike = async (postId: string) => {
         <AddIcon />
       </Fab>
 
-<Modal open={open} onClose={() => setOpen(false)}>
-  <Box
-    sx={{
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      width: 420,
-      bgcolor: "#edf2f7",
-      borderRadius: 4,
-      boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.25)",
-      p: 4,
-      border: "2px solid #243b55",
-    }}
-  >
-    <Typography
-      variant="h5"
-      gutterBottom
-      align="center"
-      sx={{
-        fontWeight: 700,
-        color: "#243b55",
-        mb: 2,
-        fontFamily: "'Orbitron', sans-serif",
-        letterSpacing: 1,
-      }}
-    >
-      Create New Post
-    </Typography>
-
-    <Stack spacing={2}>
-      <TextField
-        fullWidth
-        label="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        variant="outlined"
-      />
-      <TextField
-        fullWidth
-        label="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        variant="outlined"
-      />
-      <TextField
-        fullWidth
-        label="Review"
-        multiline
-        rows={3}
-        value={review}
-        onChange={(e) => setReview(e.target.value)}
-        variant="outlined"
-      />
-
-      <Button
-        variant="outlined"
-        component="label"
-        sx={{
-          borderColor: "#243b55",
-          color: "#243b55",
-          fontWeight: 600,
-          textTransform: "none",
-          "&:hover": {
-            bgcolor: "#d9e4f5",
-            borderColor: "#243b55",
-          },
-        }}
-      >
-        Upload Image
-        <input
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 420,
+            bgcolor: "#edf2f7",
+            borderRadius: 4,
+            boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.25)",
+            p: 4,
+            border: "2px solid #243b55",
           }}
+        >
+          <Typography
+            variant="h5"
+            gutterBottom
+            align="center"
+            sx={{
+              fontWeight: 700,
+              color: "#243b55",
+              mb: 2,
+              fontFamily: "'Orbitron', sans-serif",
+              letterSpacing: 1,
+            }}
+          >
+            Create New Post
+          </Typography>
+
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              variant="outlined"
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              variant="outlined"
+            />
+            <TextField
+              fullWidth
+              label="Review"
+              multiline
+              rows={3}
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+              variant="outlined"
+            />
+
+            <Button
+              variant="outlined"
+              component="label"
+              sx={{
+                borderColor: "#243b55",
+                color: "#243b55",
+                fontWeight: 600,
+                textTransform: "none",
+                "&:hover": {
+                  bgcolor: "#d9e4f5",
+                  borderColor: "#243b55",
+                },
+              }}
+            >
+              Upload Image
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+                }}
+              />
+            </Button>
+
+            {imageFile && (
+              <Typography variant="caption" sx={{ color: "#444", pl: 1 }}>
+                Selected: {imageFile.name}
+              </Typography>
+            )}
+
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={!title.trim() || !description.trim() || !review.trim()}
+              onClick={handleCreatePost}
+              sx={{
+                mt: 1,
+                bgcolor: "#243b55",
+                color: "#fff",
+                fontWeight: "bold",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+                "&:hover": { bgcolor: "#1b2c3a" },
+              }}
+            >
+              Publish
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+
+      {/* חלונית התגובות */}
+      {active && (
+        <CommentsDialog
+          open={!!active}
+          postId={active.id}
+          title={active.title}
+          onClose={closeComments}
+          onCommentAdded={bumpCommentsCount}
         />
-      </Button>
-
-      {imageFile && (
-        <Typography variant="caption" sx={{ color: "#444", pl: 1 }}>
-          Selected: {imageFile.name}
-        </Typography>
       )}
-
-      <Button
-        variant="contained"
-        fullWidth
-        disabled={!title.trim() || !description.trim() || !review.trim()}
-        onClick={handleCreatePost}
-        sx={{
-          mt: 1,
-          bgcolor: "#243b55",
-          color: "#fff",
-          fontWeight: "bold",
-          textTransform: "uppercase",
-          letterSpacing: 1,
-          "&:hover": { bgcolor: "#1b2c3a" },
-        }}
-      >
-        Publish
-      </Button>
-    </Stack>
-  </Box>
-</Modal>
-
-
     </Box>
   );
 };
