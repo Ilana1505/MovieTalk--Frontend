@@ -31,34 +31,51 @@ interface Post {
 }
 
 const HomePage: React.FC = () => {
+  //  AI Smart Search
+  const [aiQuery, setAiQuery] = useState("");
+  const [aiSearchLoading, setAiSearchLoading] = useState(false);
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [review, setReview] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>("");
-  const [commentCounts, setCommentCounts] = useState<{ [postId: string]: number }>({});
-  const [active, setActive] = useState<{ id: string; title: string } | null>(null); // 👈 חלונית תגובות
+  const [commentCounts, setCommentCounts] = useState<{
+    [postId: string]: number;
+  }>({});
+  const [active, setActive] = useState<{ id: string; title: string } | null>(
+    null
+  );
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadProfileThenPosts = async () => {
-      await fetchUserProfile(); // קודם המשתמש
-      await fetchPosts();       // ואז הפוסטים
+      await fetchUserProfile();
+      await fetchPosts();
     };
     loadProfileThenPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (posts.length > 0) fetchCommentCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posts]);
 
   const fetchPosts = async () => {
     try {
       const res = await axios.get("/posts");
-      setPosts(res.data);
+
+      const sorted = [...res.data].sort((a: any, b: any) =>
+        (b._id || "").localeCompare(a._id || "")
+      );
+
+      setPosts(sorted);
     } catch (err) {
       console.error("Failed to fetch posts", err);
     }
@@ -143,7 +160,8 @@ const HomePage: React.FC = () => {
   };
 
   // ====== ניהול חלונית התגובות ======
-  const openComments = (post: Post) => setActive({ id: post._id, title: post.title });
+  const openComments = (post: Post) =>
+    setActive({ id: post._id, title: post.title });
   const closeComments = () => setActive(null);
   const bumpCommentsCount = () => {
     if (!active) return;
@@ -153,6 +171,77 @@ const HomePage: React.FC = () => {
     }));
   };
   // ==================================
+
+  //  AI Smart Search
+  const runAiSearch = async () => {
+    try {
+      setAiSearchLoading(true);
+      const token = localStorage.getItem("token");
+
+      console.log("=== AI SEARCH START ===");
+      console.log("Query:", aiQuery);
+      console.log("Token exists:", !!token);
+
+      const res = await axios.post(
+        "/ai/free-search",
+        { query: aiQuery },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log("AI SEARCH RESPONSE status:", res.status);
+      console.log("AI SEARCH RESPONSE data:", res.data);
+
+      // תומך בשני פורמטים: {results: [...]} או מערך ישירות [...]
+      const results = Array.isArray(res.data) ? res.data : res.data?.results;
+
+      if (!Array.isArray(results)) {
+        console.warn("Unexpected response shape, expected results array.");
+        alert("Search response format is invalid");
+        return;
+      }
+
+      setPosts(results);
+
+      if (results.length === 0) {
+        alert("No results found for this query");
+      }
+
+      console.log("=== AI SEARCH END ===");
+    } catch (e: any) {
+      console.log("=== AI SEARCH ERROR ===");
+      console.log("Status:", e?.response?.status);
+      console.log("Data:", e?.response?.data);
+      console.log("Full error:", e);
+      alert(e?.response?.data?.message || "AI search failed");
+    } finally {
+      setAiSearchLoading(false);
+    }
+  };
+
+  const resetSearch = async () => {
+    setAiQuery("");
+    await fetchPosts();
+  };
+
+  //  Generate Description (AI)
+  const generateDescriptionWithAI = async () => {
+    try {
+      setAiLoading(true);
+      const token = localStorage.getItem("token");
+
+      const res = await axios.post(
+        "/ai/generate-description",
+        { title },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setDescription(res.data.description);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "AI failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <Box
@@ -171,7 +260,11 @@ const HomePage: React.FC = () => {
         {profilePicture ? (
           <Box
             component="img"
-            src={profilePicture ? `http://localhost:3000${profilePicture}` : undefined}
+            src={
+              profilePicture
+                ? `http://localhost:3000${profilePicture}`
+                : undefined
+            }
             alt="Profile"
             sx={{
               width: 44,
@@ -197,12 +290,65 @@ const HomePage: React.FC = () => {
             fontFamily: "'Orbitron', sans-serif",
             color: "#fff",
             textShadow: "0 3px 6px rgba(0,0,0,0.3)",
-            mb: 6,
+            mb: 3,
             letterSpacing: 1,
           }}
         >
           <span style={{ color: "#243b55" }}>MovieTalk</span> Community
         </Typography>
+
+        {/*Smart Search (AI) */}
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              width: "100%",
+              maxWidth: 520, // <-- פה שולט על הגודל (תשני ל-450/500/600 לפי מה שנראה לך)
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Smart search (AI)"
+              value={aiQuery}
+              onChange={(e) => setAiQuery(e.target.value)}
+              size="small" // <-- עושה את השדה נמוך יותר
+            />
+
+            <Button
+              variant="contained"
+              onClick={runAiSearch}
+              disabled={aiSearchLoading || aiQuery.trim().length < 2}
+              sx={{
+                bgcolor: "#243b55",
+                whiteSpace: "nowrap",
+                px: 2,
+                minWidth: 110, // <-- שלא יהיה ענק
+                height: 40, // <-- שיתאים לגובה של size="small"
+              }}
+            >
+              {aiSearchLoading ? "Searching..." : "Search"}
+            </Button>
+
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setAiQuery("");
+                fetchPosts();
+              }}
+              sx={{
+                whiteSpace: "nowrap",
+                px: 2,
+                minWidth: 90,
+                height: 40,
+                borderColor: "#243b55",
+                color: "#243b55",
+              }}
+            >
+              Reset
+            </Button>
+          </Stack>
+        </Box>
 
         <Stack spacing={2}>
           {posts.map((post) => {
@@ -272,7 +418,6 @@ const HomePage: React.FC = () => {
                       {post.likes?.length || 0}
                     </Button>
 
-                    {/* 👇 במקום ניווט – פותחים חלונית תגובות */}
                     <Button
                       variant="outlined"
                       size="small"
@@ -350,13 +495,35 @@ const HomePage: React.FC = () => {
               onChange={(e) => setTitle(e.target.value)}
               variant="outlined"
             />
+
             <TextField
-              fullWidth
               label="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              variant="outlined"
+              fullWidth
+              multiline
+              minRows={3}
+              maxRows={6}
             />
+
+            <Button
+              variant="outlined"
+              onClick={generateDescriptionWithAI}
+              disabled={aiLoading || title.trim().length < 2}
+              sx={{
+                borderColor: "#243b55",
+                color: "#243b55",
+                fontWeight: 600,
+                textTransform: "none",
+                "&:hover": {
+                  bgcolor: "#d9e4f5",
+                  borderColor: "#243b55",
+                },
+              }}
+            >
+              {aiLoading ? "Generating..." : "Generate Description (AI)"}
+            </Button>
+
             <TextField
               fullWidth
               label="Review"
