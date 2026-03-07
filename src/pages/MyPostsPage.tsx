@@ -226,12 +226,9 @@ const MyPostsPage = () => {
                     {post.title}
                   </Typography>
 
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ whiteSpace: "pre-line" }}
-                  >
-                    <strong>Description:</strong> {post.description}
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
+                    <strong style={{ color: "#000" }}>Description:</strong>{" "}
+                    <span style={{ color: "#6b7280" }}>{post.description}</span>
                   </Typography>
 
                   <Typography
@@ -239,7 +236,8 @@ const MyPostsPage = () => {
                     mt={1}
                     sx={{ whiteSpace: "pre-line" }}
                   >
-                    <strong>Review:</strong> {post.review}
+                    <strong style={{ color: "#000" }}>Review:</strong>{" "}
+                    <span style={{ color: "#6b7280" }}>{post.review}</span>
                   </Typography>
 
                   <Box
