@@ -305,7 +305,7 @@ const HomePage: React.FC = () => {
           >
             <TextField
               fullWidth
-              label="Smart search (AI)"
+              label="Smart search"
               value={aiQuery}
               onChange={(e) => setAiQuery(e.target.value)}
               size="small"
@@ -517,7 +517,7 @@ const HomePage: React.FC = () => {
                 },
               }}
             >
-              {aiLoading ? "Generating..." : "Generate Description (AI)"}
+              {aiLoading ? "Generating..." : "Generate Description"}
             </Button>
 
             <TextField
