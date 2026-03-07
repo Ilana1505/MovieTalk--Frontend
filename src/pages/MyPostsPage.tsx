@@ -8,11 +8,15 @@ import {
   Stack,
   IconButton,
   Button,
+  Modal,
+  TextField,
 } from "@mui/material";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
-import CommentsDialog from "../components/CommentsDialog"; // ← להשתמש במודאל שכבר יש לך
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CommentsDialog from "../components/CommentsDialog";
 
 type Post = {
   _id: string;
@@ -33,6 +37,12 @@ const MyPostsPage = () => {
     title: string;
   } | null>(null);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editReview, setEditReview] = useState("");
+
   useEffect(() => {
     const fetchMyPosts = async () => {
       try {
@@ -48,7 +58,6 @@ const MyPostsPage = () => {
     fetchMyPosts();
   }, []);
 
-  // שליפת מוני תגובות לכל פוסט
   useEffect(() => {
     const fetchCounts = async () => {
       const next: Record<string, number> = {};
@@ -62,16 +71,83 @@ const MyPostsPage = () => {
       }
       setCommentCounts(next);
     };
-    if (posts.length) fetchCounts();
+
+    if (posts.length) {
+      fetchCounts();
+    }
   }, [posts]);
 
-  // נקרא כשנוספה תגובה במודאל – מגדיל מיידית את המונה
   const handleCommentAdded = () => {
     if (!dialogPost) return;
     setCommentCounts((prev) => ({
       ...prev,
       [dialogPost.id]: (prev[dialogPost.id] || 0) + 1,
     }));
+  };
+
+  const handleOpenEdit = (post: Post) => {
+    setEditingPost(post);
+    setEditTitle(post.title);
+    setEditDescription(post.description);
+    setEditReview(post.review);
+    setEditOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setEditOpen(false);
+    setEditingPost(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditReview("");
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this post?",
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      await axios.delete(`/posts/${postId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setPosts((prev) => prev.filter((post) => post._id !== postId));
+    } catch (err) {
+      console.error("Failed to delete post", err);
+      alert("Failed to delete post");
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPost) return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await axios.put(
+        `/posts/${editingPost._id}`,
+        {
+          title: editTitle,
+          description: editDescription,
+          review: editReview,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      setPosts((prev) =>
+        prev.map((post) => (post._id === editingPost._id ? res.data : post)),
+      );
+
+      handleCloseEdit();
+    } catch (err) {
+      console.error("Failed to update post", err);
+      alert("Failed to update post");
+    }
   };
 
   return (
@@ -88,7 +164,7 @@ const MyPostsPage = () => {
 
         {posts.length === 0 ? (
           <Typography align="center" color="text.secondary">
-            You haven't posted anything yet.
+            You haven&apos;t posted anything yet.
           </Typography>
         ) : (
           <Stack spacing={3}>
@@ -103,8 +179,33 @@ const MyPostsPage = () => {
                   gap: 2,
                   bgcolor: "#fff",
                   alignItems: "flex-start",
+                  position: "relative",
                 }}
               >
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    display: "flex",
+                    gap: 1,
+                  }}
+                >
+                  <IconButton
+                    onClick={() => handleOpenEdit(post)}
+                    sx={{ color: "#243b55" }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={() => handleDeletePost(post._id)}
+                    sx={{ color: "#d32f2f" }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+
                 {post.image && (
                   <Box
                     component="img"
@@ -120,18 +221,27 @@ const MyPostsPage = () => {
                   />
                 )}
 
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{ flex: 1, pr: 8 }}>
                   <Typography variant="h6" fontWeight="bold">
                     {post.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ whiteSpace: "pre-line" }}
+                  >
                     <strong>Description:</strong> {post.description}
                   </Typography>
-                  <Typography variant="body2" mt={1}>
+
+                  <Typography
+                    variant="body2"
+                    mt={1}
+                    sx={{ whiteSpace: "pre-line" }}
+                  >
                     <strong>Review:</strong> {post.review}
                   </Typography>
 
-                  {/* פעולות בצד ימין: לייקים + תגובות */}
                   <Box
                     sx={{
                       mt: 2,
@@ -189,7 +299,6 @@ const MyPostsPage = () => {
         )}
       </Container>
 
-      {/* מודאל תגובות — אותו קומפוננט שהשתמשת בו בפיד */}
       <CommentsDialog
         open={!!dialogPost}
         postId={dialogPost?.id || ""}
@@ -197,6 +306,63 @@ const MyPostsPage = () => {
         onClose={() => setDialogPost(null)}
         onCommentAdded={handleCommentAdded}
       />
+
+      <Modal open={editOpen} onClose={handleCloseEdit}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 420,
+            bgcolor: "background.paper",
+            borderRadius: 3,
+            boxShadow: 24,
+            p: 4,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            Edit Post
+          </Typography>
+
+          <TextField
+            label="Movie Title"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            fullWidth
+          />
+
+          <TextField
+            label="Description"
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            fullWidth
+            multiline
+            minRows={3}
+          />
+
+          <TextField
+            label="Review"
+            value={editReview}
+            onChange={(e) => setEditReview(e.target.value)}
+            fullWidth
+            multiline
+            minRows={3}
+          />
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <Button onClick={handleCloseEdit} variant="outlined">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} variant="contained">
+              Save Changes
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 };

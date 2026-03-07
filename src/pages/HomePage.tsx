@@ -55,7 +55,7 @@ const HomePage: React.FC = () => {
     [postId: string]: number;
   }>({});
   const [active, setActive] = useState<{ id: string; title: string } | null>(
-    null
+    null,
   );
 
   const navigate = useNavigate();
@@ -79,7 +79,7 @@ const HomePage: React.FC = () => {
       const res = await axios.get("/posts");
 
       const sorted = [...res.data].sort((a: any, b: any) =>
-        (b._id || "").localeCompare(a._id || "")
+        (b._id || "").localeCompare(a._id || ""),
       );
 
       setPosts(sorted);
@@ -137,8 +137,8 @@ const HomePage: React.FC = () => {
                     ? [...(post.likes || []), userId]
                     : (post.likes || []).filter((id) => id !== userId),
               }
-            : post
-        )
+            : post,
+        ),
       );
     } catch (err) {
       console.error("Failed to toggle like", err);
@@ -252,7 +252,10 @@ const HomePage: React.FC = () => {
     >
       <IconButton
         onClick={() => {
-          console.log("🏠 going profile. token=", localStorage.getItem("token"));
+          console.log(
+            "🏠 going profile. token=",
+            localStorage.getItem("token"),
+          );
           navigate("/profile");
         }}
         sx={{ position: "absolute", top: 20, left: 20 }}
@@ -382,11 +385,15 @@ const HomePage: React.FC = () => {
                     {post.title}
                   </Typography>
 
-                  <Typography variant="body2" color="text.secondary" mb={1}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ whiteSpace: "pre-line" }}
+                  >
                     <strong>Description:</strong> {post.description}
                   </Typography>
 
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
                     <strong>Review:</strong> {post.review}
                   </Typography>
 
