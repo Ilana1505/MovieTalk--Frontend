@@ -11,17 +11,19 @@ const LoginWithGoogle = () => {
       const res = await axios.post(
         "/auth/login-with-google",
         { token: credentialResponse.credential },
-        { withCredentials: true }
+        { withCredentials: true },
       );
 
+      localStorage.removeItem("token");
+      localStorage.setItem("token", res.data.accessToken);
+
       alert("Successfully logged in with Google!");
-      navigate("/"); // or "/profile" depending on your routing
+      navigate("/feed");
     } catch (err) {
       console.error("Error logging in with Google:", err);
       alert("An error occurred while logging in with Google.");
     }
   };
-
   return (
     <div style={{ marginTop: "20px" }}>
       <GoogleLogin

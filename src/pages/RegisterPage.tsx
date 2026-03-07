@@ -40,20 +40,23 @@ const RegisterPage = () => {
   };
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
-    try {
-      const res = await axios.post(
-        "/auth/login-with-google",
-        { token: credentialResponse.credential },
-        { withCredentials: true }
-      );
+  try {
+    const res = await axios.post(
+      "/auth/login-with-google",
+      { token: credentialResponse.credential },
+      { withCredentials: true }
+    );
 
-      alert("Signed in successfully with Google!");
-      navigate("/feed");
-    } catch (err) {
-      console.error("Google sign-in failed:", err);
-      alert("Google sign-in failed");
-    }
-  };
+    localStorage.removeItem("token");
+    localStorage.setItem("token", res.data.accessToken);
+
+    alert("Signed in successfully with Google!");
+    navigate("/feed");
+  } catch (err) {
+    console.error("Google sign-in failed:", err);
+    alert("Google sign-in failed");
+  }
+};
 
   return (
     <div className="auth-container">

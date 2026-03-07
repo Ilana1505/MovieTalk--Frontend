@@ -25,8 +25,13 @@ type Post = {
 
 const MyPostsPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
-  const [dialogPost, setDialogPost] = useState<{ id: string; title: string } | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {},
+  );
+  const [dialogPost, setDialogPost] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchMyPosts = async () => {
@@ -127,7 +132,14 @@ const MyPostsPage = () => {
                   </Typography>
 
                   {/* פעולות בצד ימין: לייקים + תגובות */}
-                  <Box sx={{ mt: 2, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+                  <Box
+                    sx={{
+                      mt: 2,
+                      display: "flex",
+                      gap: 1,
+                      justifyContent: "flex-end",
+                    }}
+                  >
                     <Button
                       variant="outlined"
                       size="small"
@@ -155,7 +167,9 @@ const MyPostsPage = () => {
                       variant="outlined"
                       size="small"
                       startIcon={<ChatBubbleOutlineIcon />}
-                      onClick={() => setDialogPost({ id: post._id, title: post.title })}
+                      onClick={() =>
+                        setDialogPost({ id: post._id, title: post.title })
+                      }
                       sx={{
                         borderColor: "#607d8b",
                         color: "#607d8b",

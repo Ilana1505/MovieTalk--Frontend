@@ -9,32 +9,83 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  const saveAuthToLocalStorage = (data: any) => {
+    console.log("🟦 login response data:", data);
+
+    const accessToken = data?.accessToken;
+    const refreshToken = data?.refreshToken;
+
+    console.log("🟦 accessToken:", accessToken);
+    console.log("🟦 refreshToken:", refreshToken);
+
+    // ✅ אם אין טוקן תקין - לא שומרים כלום
+    if (!accessToken || typeof accessToken !== "string") {
+      console.log("🟥 Missing accessToken -> NOT saving token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      return;
+    }
+
+    localStorage.setItem("token", accessToken);
+
+    if (refreshToken && typeof refreshToken === "string") {
+      localStorage.setItem("refreshToken", refreshToken);
+    } else {
+      localStorage.removeItem("refreshToken");
+    }
+
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        _id: data?._id,
+        email: data?.email,
+        fullName: data?.fullName,
+        profilePicture: data?.profilePicture,
+      })
+    );
+
+    console.log("🟦 token saved in LS:", localStorage.getItem("token"));
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await axios.post("/auth/login", { email, password });
-      localStorage.removeItem("token");
-      localStorage.setItem("token", res.data.accessToken);
+      saveAuthToLocalStorage(res.data);
+
+      if (!res.data?.accessToken) {
+        alert("Login failed: missing access token from server");
+        return;
+      }
+
       navigate("/feed");
     } catch (err: any) {
-      console.error("Login error:", err?.response?.data);
+      console.error("Login error:", err?.response?.data || err);
       alert(err?.response?.data || "Login failed");
     }
   };
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
-      const res = await axios.post(
-        "/auth/login-with-google",
-        { token: credentialResponse.credential },
-        { withCredentials: true }
-      );
-      localStorage.removeItem("token");
-      localStorage.setItem("token", res.data.accessToken);
-      alert("Signed in successfully with Google!");
+      const credential = credentialResponse?.credential;
+      console.log("🟦 Google credential exists?", !!credential);
+
+      if (!credential) {
+        alert("Google Sign-In failed: missing credential");
+        return;
+      }
+
+      const res = await axios.post("/auth/login-with-google", { token: credential });
+      saveAuthToLocalStorage(res.data);
+
+      if (!res.data?.accessToken) {
+        alert("Google login failed: missing access token from server");
+        return;
+      }
+
       navigate("/feed");
-    } catch (err) {
-      console.error("Google sign-in failed:", err);
+    } catch (err: any) {
+      console.error("Google sign-in failed:", err?.response?.data || err);
       alert("Google sign-in failed");
     }
   };
@@ -64,7 +115,6 @@ const LoginPage: React.FC = () => {
 
         <button type="submit">Login</button>
 
-        {/* --- Sign up link --- */}
         <div style={{ marginTop: 12, textAlign: "center" }}>
           <span style={{ color: "#cbd5e1" }}>Don't have an account? </span>
           <button
@@ -86,7 +136,6 @@ const LoginPage: React.FC = () => {
         </div>
       </form>
 
-      {/* Google Sign-In Button */}
       <div style={{ marginTop: 20 }}>
         <GoogleLogin
           onSuccess={handleGoogleSuccess}

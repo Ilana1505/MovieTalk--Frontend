@@ -30,8 +30,14 @@ interface Post {
   likes?: string[];
 }
 
+const toAbsolute = (url?: string | null) =>
+  url
+    ? url.startsWith("http")
+      ? url
+      : `http://localhost:3000${url}`
+    : undefined;
+
 const HomePage: React.FC = () => {
-  //  AI Smart Search
   const [aiQuery, setAiQuery] = useState("");
   const [aiSearchLoading, setAiSearchLoading] = useState(false);
 
@@ -43,6 +49,7 @@ const HomePage: React.FC = () => {
   const [review, setReview] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [profileImageError, setProfileImageError] = useState(false);
   const [userId, setUserId] = useState<string>("");
   const [commentCounts, setCommentCounts] = useState<{
     [postId: string]: number;
@@ -84,13 +91,24 @@ const HomePage: React.FC = () => {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("/auth/check", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProfilePicture(res.data.profilePicture);
+      console.log("🏠 HomePage fetchUserProfile token:", token);
+
+      if (!token || token === "null" || token === "undefined") {
+        console.log("🏠 No valid token -> redirect login");
+        navigate("/login");
+        return;
+      }
+
+      const res = await axios.get("/auth/check");
+      console.log("🏠 /auth/check success:", res.data);
+
+      setProfilePicture(res.data.profilePicture || null);
+      setProfileImageError(false);
       setUserId(res.data._id);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch user profile", err);
+      console.log("🏠 /auth/check status:", err?.response?.status);
+      console.log("🏠 /auth/check data:", err?.response?.data);
     }
   };
 
@@ -105,12 +123,7 @@ const HomePage: React.FC = () => {
 
   const handleLike = async (postId: string) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        `/posts/${postId}/like`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post(`/posts/${postId}/like`, {});
 
       const { message } = res.data;
 
@@ -134,7 +147,6 @@ const HomePage: React.FC = () => {
 
   const handleCreatePost = async () => {
     try {
-      const token = localStorage.getItem("token");
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", description);
@@ -143,7 +155,6 @@ const HomePage: React.FC = () => {
 
       await axios.post("/posts", formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
@@ -159,10 +170,11 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // ====== ניהול חלונית התגובות ======
   const openComments = (post: Post) =>
     setActive({ id: post._id, title: post.title });
+
   const closeComments = () => setActive(null);
+
   const bumpCommentsCount = () => {
     if (!active) return;
     setCommentCounts((prev) => ({
@@ -170,28 +182,19 @@ const HomePage: React.FC = () => {
       [active.id]: (prev[active.id] || 0) + 1,
     }));
   };
-  // ==================================
 
-  //  AI Smart Search
   const runAiSearch = async () => {
     try {
       setAiSearchLoading(true);
-      const token = localStorage.getItem("token");
 
       console.log("=== AI SEARCH START ===");
       console.log("Query:", aiQuery);
-      console.log("Token exists:", !!token);
 
-      const res = await axios.post(
-        "/ai/free-search",
-        { query: aiQuery },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post("/ai/free-search", { query: aiQuery });
 
       console.log("AI SEARCH RESPONSE status:", res.status);
       console.log("AI SEARCH RESPONSE data:", res.data);
 
-      // תומך בשני פורמטים: {results: [...]} או מערך ישירות [...]
       const results = Array.isArray(res.data) ? res.data : res.data?.results;
 
       if (!Array.isArray(results)) {
@@ -223,17 +226,11 @@ const HomePage: React.FC = () => {
     await fetchPosts();
   };
 
-  //  Generate Description (AI)
   const generateDescriptionWithAI = async () => {
     try {
       setAiLoading(true);
-      const token = localStorage.getItem("token");
 
-      const res = await axios.post(
-        "/ai/generate-description",
-        { title },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post("/ai/generate-description", { title });
 
       setDescription(res.data.description);
     } catch (e: any) {
@@ -254,18 +251,18 @@ const HomePage: React.FC = () => {
       }}
     >
       <IconButton
-        onClick={() => navigate("/profile")}
+        onClick={() => {
+          console.log("🏠 going profile. token=", localStorage.getItem("token"));
+          navigate("/profile");
+        }}
         sx={{ position: "absolute", top: 20, left: 20 }}
       >
-        {profilePicture ? (
+        {profilePicture && !profileImageError ? (
           <Box
             component="img"
-            src={
-              profilePicture
-                ? `http://localhost:3000${profilePicture}`
-                : undefined
-            }
+            src={toAbsolute(profilePicture)}
             alt="Profile"
+            onError={() => setProfileImageError(true)}
             sx={{
               width: 44,
               height: 44,
@@ -297,14 +294,13 @@ const HomePage: React.FC = () => {
           <span style={{ color: "#243b55" }}>MovieTalk</span> Community
         </Typography>
 
-        {/*Smart Search (AI) */}
         <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
           <Stack
             direction="row"
             spacing={1}
             sx={{
               width: "100%",
-              maxWidth: 520, // <-- פה שולט על הגודל (תשני ל-450/500/600 לפי מה שנראה לך)
+              maxWidth: 520,
             }}
           >
             <TextField
@@ -312,7 +308,7 @@ const HomePage: React.FC = () => {
               label="Smart search (AI)"
               value={aiQuery}
               onChange={(e) => setAiQuery(e.target.value)}
-              size="small" // <-- עושה את השדה נמוך יותר
+              size="small"
             />
 
             <Button
@@ -323,8 +319,8 @@ const HomePage: React.FC = () => {
                 bgcolor: "#243b55",
                 whiteSpace: "nowrap",
                 px: 2,
-                minWidth: 110, // <-- שלא יהיה ענק
-                height: 40, // <-- שיתאים לגובה של size="small"
+                minWidth: 110,
+                height: 40,
               }}
             >
               {aiSearchLoading ? "Searching..." : "Search"}
@@ -332,10 +328,7 @@ const HomePage: React.FC = () => {
 
             <Button
               variant="outlined"
-              onClick={() => {
-                setAiQuery("");
-                fetchPosts();
-              }}
+              onClick={resetSearch}
               sx={{
                 whiteSpace: "nowrap",
                 px: 2,
@@ -383,13 +376,16 @@ const HomePage: React.FC = () => {
                     }}
                   />
                 )}
+
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     {post.title}
                   </Typography>
+
                   <Typography variant="body2" color="text.secondary" mb={1}>
                     <strong>Description:</strong> {post.description}
                   </Typography>
+
                   <Typography variant="body2" color="text.secondary">
                     <strong>Review:</strong> {post.review}
                   </Typography>
@@ -586,7 +582,6 @@ const HomePage: React.FC = () => {
         </Box>
       </Modal>
 
-      {/* חלונית התגובות */}
       {active && (
         <CommentsDialog
           open={!!active}

@@ -21,33 +21,82 @@ type UserProfile = {
   profilePicture?: string | null;
 };
 
-// ממיר כתובת יחסית ("/uploads/...") לכתובת מלאה ("http://localhost:3000/uploads/...")
 const toAbsolute = (url?: string | null) =>
-  url ? (url.startsWith("http") ? url : `http://localhost:3000${url}`) : undefined;
+  url
+    ? url.startsWith("http")
+      ? url
+      : `http://localhost:3000${url}`
+    : undefined;
 
 const ProfilePage = () => {
-  const [user, setUser] = useState<UserProfile>({ fullName: "", email: "", phone: "" });
-  const [editing, setEditing] = useState<{ field: string | null }>({ field: null });
+  const [user, setUser] = useState<UserProfile>({
+    fullName: "",
+    email: "",
+    phone: "",
+  });
+  const [editing, setEditing] = useState<{ field: string | null }>({
+    field: null,
+  });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [newPicture, setNewPicture] = useState<File | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  const [cacheBuster, setCacheBuster] = useState(0); // לעקיפת cache אחרי העלאה
+  const [cacheBuster, setCacheBuster] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const hardLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
 
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("/auth/check", {
-        headers: { Authorization: `Bearer ${token}` },
+      console.log("👤 ProfilePage token:", token);
+
+      if (!token || token === "null" || token === "undefined") {
+        console.log("👤 No valid token -> redirect login");
+        hardLogout();
+        return;
+      }
+
+      const res = await axios.get("/auth/check");
+
+      console.log("👤 /auth/check response:", res.data);
+
+      setUser({
+        fullName: res.data?.fullName || "",
+        email: res.data?.email || "",
+        phone: res.data?.phone || "",
+        profilePicture: res.data?.profilePicture || "",
       });
-      setUser(res.data);
-      setProfilePicture(res.data.profilePicture || null);
-    } catch (e) {
+
+      setProfilePicture(res.data?.profilePicture || null);
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          _id: res.data?._id,
+          email: res.data?.email,
+          fullName: res.data?.fullName,
+          profilePicture: res.data?.profilePicture,
+        }),
+      );
+    } catch (e: any) {
       console.error("Failed to load profile", e);
+      console.log("👤 /auth/check status:", e?.response?.status);
+      console.log("👤 /auth/check data:", e?.response?.data);
+
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        hardLogout();
+      }
     }
   };
 
@@ -59,52 +108,78 @@ const ProfilePage = () => {
   const saveChanges = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.put(
-        "/auth/update-profile",
-        { fullName: user.fullName, email: user.email },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (!token || token === "null" || token === "undefined") {
+        return hardLogout();
+      }
+
+      await axios.put("/auth/update-profile", {
+        fullName: user.fullName,
+        email: user.email,
+      });
+
       setEditing({ field: null });
       fetchProfile();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to save profile", e);
+      console.log("✏️ update-profile status:", e?.response?.status);
+      console.log("✏️ update-profile data:", e?.response?.data);
+
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) hardLogout();
     }
   };
 
   const handlePictureUpload = async () => {
     if (!newPicture) return;
+
     try {
+      const token = localStorage.getItem("token");
+      if (!token || token === "null" || token === "undefined") {
+        return hardLogout();
+      }
+
       const formData = new FormData();
       formData.append("image", newPicture);
-      const token = localStorage.getItem("token");
+
       await axios.post("/users/upload-profile-pic", formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
       });
+
       setNewPicture(null);
       await fetchProfile();
-      setCacheBuster(Date.now()); // כדי לרענן את התמונה אם נשמר אותו שם קובץ
-    } catch (e) {
+      setCacheBuster(Date.now());
+    } catch (e: any) {
       console.error("Failed to upload picture", e);
+      console.log("🖼️ upload-profile-pic status:", e?.response?.status);
+      console.log("🖼️ upload-profile-pic data:", e?.response?.data);
+
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) hardLogout();
     }
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+    hardLogout();
   };
 
   const deleteAccount = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete("/users/delete", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      logout();
-    } catch (e) {
+      if (!token || token === "null" || token === "undefined") {
+        return hardLogout();
+      }
+
+      await axios.delete("/users/delete");
+      hardLogout();
+    } catch (e: any) {
       console.error("Failed to delete account", e);
+      console.log("🗑️ delete account status:", e?.response?.status);
+      console.log("🗑️ delete account data:", e?.response?.data);
+
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) hardLogout();
     }
   };
 
@@ -175,7 +250,10 @@ const ProfilePage = () => {
           ) : (
             <Typography fontWeight="bold">
               {user.fullName || "No Name"}
-              <IconButton size="small" onClick={() => setEditing({ field: "fullName" })}>
+              <IconButton
+                size="small"
+                onClick={() => setEditing({ field: "fullName" })}
+              >
                 <EditIcon fontSize="small" />
               </IconButton>
             </Typography>
@@ -193,7 +271,10 @@ const ProfilePage = () => {
           ) : (
             <Typography color="text.secondary">
               {user.email}
-              <IconButton size="small" onClick={() => setEditing({ field: "email" })}>
+              <IconButton
+                size="small"
+                onClick={() => setEditing({ field: "email" })}
+              >
                 <EditIcon fontSize="small" />
               </IconButton>
             </Typography>
@@ -207,15 +288,26 @@ const ProfilePage = () => {
               onBlur={async () => {
                 try {
                   const token = localStorage.getItem("token");
-                  await axios.put(
-                    "/auth/change-password",
-                    { password: newPassword },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                  );
+                  if (!token || token === "null" || token === "undefined") {
+                    return hardLogout();
+                  }
+
+                  await axios.put("/auth/change-password", {
+                    password: newPassword,
+                  });
+
                   setEditing({ field: null });
                   setNewPassword("");
-                } catch (e) {
+                } catch (e: any) {
                   console.error("Failed to change password", e);
+                  console.log(
+                    "🔒 change-password status:",
+                    e?.response?.status,
+                  );
+                  console.log("🔒 change-password data:", e?.response?.data);
+
+                  const status = e?.response?.status;
+                  if (status === 401 || status === 403) hardLogout();
                 }
               }}
               autoFocus
@@ -224,7 +316,10 @@ const ProfilePage = () => {
           ) : (
             <Typography color="text.secondary">
               ********
-              <IconButton size="small" onClick={() => setEditing({ field: "password" })}>
+              <IconButton
+                size="small"
+                onClick={() => setEditing({ field: "password" })}
+              >
                 <EditIcon fontSize="small" />
               </IconButton>
             </Typography>
