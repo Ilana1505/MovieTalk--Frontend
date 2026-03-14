@@ -48,47 +48,54 @@ const LoginPage: React.FC = () => {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await axios.post("/auth/login", { email, password });
-      saveAuthToLocalStorage(res.data);
+  e.preventDefault();
+  try {
+    const res = await axios.post("/auth/login", { email, password });
 
-      if (!res.data?.accessToken) {
-        alert("Login failed: missing access token from server");
-        return;
-      }
+    localStorage.setItem("token", res.data.accessToken);
+    localStorage.setItem("refreshToken", res.data.refreshToken);
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        _id: res.data._id,
+        email: res.data.email,
+        fullName: res.data.fullName,
+      })
+    );
 
-      navigate("/feed");
-    } catch (err: any) {
-      console.error("Login error:", err?.response?.data || err);
-      alert(err?.response?.data || "Login failed");
-    }
-  };
+    navigate("/feed");
+  } catch (err: any) {
+    console.error("Login error:", err?.response?.data);
+    alert(err?.response?.data || "Login failed");
+  }
+};
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    try {
-      const credential = credentialResponse?.credential;
-      console.log("🟦 Google credential exists?", !!credential);
+const handleGoogleSuccess = async (credentialResponse: any) => {
+  try {
+    const res = await axios.post(
+      "/auth/login-with-google",
+      { token: credentialResponse.credential },
+      { withCredentials: true }
+    );
 
-      if (!credential) {
-        alert("Google Sign-In failed: missing credential");
-        return;
-      }
+    localStorage.setItem("token", res.data.accessToken);
+    localStorage.setItem("refreshToken", res.data.refreshToken);
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        _id: res.data._id,
+        email: res.data.email,
+        fullName: res.data.fullName,
+      })
+    );
 
-      const res = await axios.post("/auth/login-with-google", { token: credential });
-      saveAuthToLocalStorage(res.data);
-
-      if (!res.data?.accessToken) {
-        alert("Google login failed: missing access token from server");
-        return;
-      }
-
-      navigate("/feed");
-    } catch (err: any) {
-      console.error("Google sign-in failed:", err?.response?.data || err);
-      alert("Google sign-in failed");
-    }
-  };
+    alert("Signed in successfully with Google!");
+    navigate("/feed");
+  } catch (err) {
+    console.error("Google sign-in failed:", err);
+    alert("Google sign-in failed");
+  }
+};
 
   return (
     <div className="auth-container">

@@ -39,7 +39,7 @@ const RegisterPage = () => {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+const handleGoogleSuccess = async (credentialResponse: any) => {
   try {
     const res = await axios.post(
       "/auth/login-with-google",
@@ -47,8 +47,16 @@ const RegisterPage = () => {
       { withCredentials: true }
     );
 
-    localStorage.removeItem("token");
     localStorage.setItem("token", res.data.accessToken);
+    localStorage.setItem("refreshToken", res.data.refreshToken);
+    localStorage.setItem(
+      "user",
+      JSON.stringify({
+        _id: res.data._id,
+        email: res.data.email,
+        fullName: res.data.fullName,
+      })
+    );
 
     alert("Signed in successfully with Google!");
     navigate("/feed");

@@ -42,6 +42,8 @@ const MyPostsPage = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editReview, setEditReview] = useState("");
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [removeEditImage, setRemoveEditImage] = useState(false);
 
   useEffect(() => {
     const fetchMyPosts = async () => {
@@ -65,16 +67,14 @@ const MyPostsPage = () => {
         try {
           const res = await axios.get(`/comments/post/${p._id}`);
           next[p._id] = Array.isArray(res.data) ? res.data.length : 0;
-        } catch (e) {
+        } catch {
           next[p._id] = 0;
         }
       }
       setCommentCounts(next);
     };
 
-    if (posts.length) {
-      fetchCounts();
-    }
+    if (posts.length) fetchCounts();
   }, [posts]);
 
   const handleCommentAdded = () => {
@@ -90,6 +90,8 @@ const MyPostsPage = () => {
     setEditTitle(post.title);
     setEditDescription(post.description);
     setEditReview(post.review);
+    setEditImage(null);
+    setRemoveEditImage(false);
     setEditOpen(true);
   };
 
@@ -99,6 +101,8 @@ const MyPostsPage = () => {
     setEditTitle("");
     setEditDescription("");
     setEditReview("");
+    setEditImage(null);
+    setRemoveEditImage(false);
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -127,17 +131,20 @@ const MyPostsPage = () => {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await axios.put(
-        `/posts/${editingPost._id}`,
-        {
-          title: editTitle,
-          description: editDescription,
-          review: editReview,
+      const formData = new FormData();
+      formData.append("title", editTitle);
+      formData.append("description", editDescription);
+      formData.append("review", editReview);
+      formData.append("removeImage", String(removeEditImage));
+
+      if (editImage) formData.append("image", editImage);
+
+      const res = await axios.put(`/posts/${editingPost._id}`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      });
 
       setPosts((prev) =>
         prev.map((post) => (post._id === editingPost._id ? res.data : post)),
@@ -164,7 +171,7 @@ const MyPostsPage = () => {
 
         {posts.length === 0 ? (
           <Typography align="center" color="text.secondary">
-            You haven&apos;t posted anything yet.
+            You haven't posted anything yet.
           </Typography>
         ) : (
           <Stack spacing={3}>
@@ -216,7 +223,6 @@ const MyPostsPage = () => {
                       height: 130,
                       borderRadius: 2,
                       objectFit: "cover",
-                      flexShrink: 0,
                     }}
                   />
                 )}
@@ -226,17 +232,13 @@ const MyPostsPage = () => {
                     {post.title}
                   </Typography>
 
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                    <strong style={{ color: "#000" }}>Description:</strong>{" "}
+                  <Typography sx={{ whiteSpace: "pre-line" }}>
+                    <strong>Description:</strong>{" "}
                     <span style={{ color: "#6b7280" }}>{post.description}</span>
                   </Typography>
 
-                  <Typography
-                    variant="body2"
-                    mt={1}
-                    sx={{ whiteSpace: "pre-line" }}
-                  >
-                    <strong style={{ color: "#000" }}>Review:</strong>{" "}
+                  <Typography sx={{ whiteSpace: "pre-line", mt: 1 }}>
+                    <strong>Review:</strong>{" "}
                     <span style={{ color: "#6b7280" }}>{post.review}</span>
                   </Typography>
 
@@ -278,14 +280,6 @@ const MyPostsPage = () => {
                       onClick={() =>
                         setDialogPost({ id: post._id, title: post.title })
                       }
-                      sx={{
-                        borderColor: "#607d8b",
-                        color: "#607d8b",
-                        borderRadius: 999,
-                        textTransform: "none",
-                        px: 1.5,
-                        minWidth: 88,
-                      }}
                     >
                       {commentCounts[post._id] ?? 0}
                     </Button>
@@ -312,7 +306,10 @@ const MyPostsPage = () => {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: 420,
+            width: "90%",
+            maxWidth: 520,
+            maxHeight: "90vh",
+            overflowY: "auto",
             bgcolor: "background.paper",
             borderRadius: 3,
             boxShadow: 24,
@@ -331,31 +328,109 @@ const MyPostsPage = () => {
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             fullWidth
+            size="small"
           />
 
           <TextField
             label="Description"
             value={editDescription}
             onChange={(e) => setEditDescription(e.target.value)}
-            fullWidth
             multiline
-            minRows={3}
+            minRows={2}
+            size="small"
           />
 
           <TextField
             label="Review"
             value={editReview}
             onChange={(e) => setEditReview(e.target.value)}
-            fullWidth
             multiline
-            minRows={3}
+            minRows={2}
+            size="small"
           />
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            {editingPost?.image && !removeEditImage && !editImage && (
+              <Box
+                component="img"
+                src={`http://localhost:3000${editingPost.image}`}
+                sx={{
+                  width: 140,
+                  height: 180,
+                  objectFit: "cover",
+                  borderRadius: 2,
+                }}
+              />
+            )}
+
+            {editImage && (
+              <Box
+                component="img"
+                src={URL.createObjectURL(editImage)}
+                sx={{
+                  width: 110,
+                  height: 150,
+                  objectFit: "cover",
+                  borderRadius: 2,
+                }}
+              />
+            )}
+
+            <Button
+              variant="outlined"
+              component="label"
+              size="small"
+              sx={{ width: 160 }}
+            >
+              Replace Image
+              <input
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setEditImage(file);
+                  if (file) setRemoveEditImage(false);
+                }}
+              />
+            </Button>
+
+            {(editingPost?.image || editImage) && (
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                sx={{ width: 160 }}
+                onClick={() => {
+                  setEditImage(null);
+                  setRemoveEditImage(true);
+                }}
+              >
+                Remove Image
+              </Button>
+            )}
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 2,
+              mt: 2,
+            }}
+          >
             <Button onClick={handleCloseEdit} variant="outlined">
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit} variant="contained">
+
+            <Button variant="contained" onClick={handleSaveEdit}>
               Save Changes
             </Button>
           </Box>
