@@ -19,7 +19,6 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useNavigate } from "react-router-dom";
-import CommentsDialog from "../components/CommentsDialog";
 
 interface Post {
   _id: string;
@@ -64,7 +63,6 @@ const HomePage: React.FC = () => {
   const [profileImageError, setProfileImageError] = useState(false);
   const [userId, setUserId] = useState<string>("");
   const [commentCounts, setCommentCounts] = useState<{ [postId: string]: number }>({});
-  const [active, setActive] = useState<{ id: string; title: string } | null>(null);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -137,24 +135,18 @@ const HomePage: React.FC = () => {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem("token");
-      console.log("🏠 HomePage fetchUserProfile token:", token);
 
       if (!token || token === "null" || token === "undefined") {
-        console.log("🏠 No valid token -> redirect login");
         navigate("/login");
         return;
       }
 
       const res = await axios.get("/auth/check");
-      console.log("🏠 /auth/check success:", res.data);
-
       setProfilePicture(res.data.profilePicture || null);
       setProfileImageError(false);
       setUserId(res.data._id);
     } catch (err: any) {
       console.error("Failed to fetch user profile", err);
-      console.log("🏠 /auth/check status:", err?.response?.status);
-      console.log("🏠 /auth/check data:", err?.response?.data);
     }
   };
 
@@ -227,21 +219,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const openComments = (post: Post) => {
-    setActive({ id: post._id, title: post.title });
-  };
-
-  const closeComments = () => setActive(null);
-
-  const bumpCommentsCount = () => {
-    if (!active) return;
-
-    setCommentCounts((prev) => ({
-      ...prev,
-      [active.id]: (prev[active.id] || 0) + 1,
-    }));
-  };
-
   const runAiSearch = async () => {
     try {
       setAiSearchLoading(true);
@@ -305,10 +282,7 @@ const HomePage: React.FC = () => {
       }}
     >
       <IconButton
-        onClick={() => {
-          console.log("🏠 going profile. token=", localStorage.getItem("token"));
-          navigate("/profile");
-        }}
+        onClick={() => navigate("/profile")}
         sx={{ position: "absolute", top: 20, left: 20 }}
       >
         {profilePicture && !profileImageError ? (
@@ -484,7 +458,7 @@ const HomePage: React.FC = () => {
                         variant="outlined"
                         size="small"
                         startIcon={<ChatBubbleOutlineIcon />}
-                        onClick={() => openComments(post)}
+                        onClick={() => navigate(`/posts/${post._id}/comments`)}
                         sx={{
                           borderColor: "#607d8b",
                           color: "#607d8b",
@@ -677,16 +651,6 @@ const HomePage: React.FC = () => {
           </Stack>
         </Box>
       </Modal>
-
-      {active && (
-        <CommentsDialog
-          open={!!active}
-          postId={active.id}
-          title={active.title}
-          onClose={closeComments}
-          onCommentAdded={bumpCommentsCount}
-        />
-      )}
     </Box>
   );
 };

@@ -12,6 +12,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ImageIcon from "@mui/icons-material/Image";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
 
 type UserProfile = {
@@ -86,7 +87,7 @@ const ProfilePage = () => {
           email: res.data?.email,
           fullName: res.data?.fullName,
           profilePicture: res.data?.profilePicture,
-        }),
+        })
       );
     } catch (e: any) {
       console.error("Failed to load profile", e);
@@ -197,8 +198,33 @@ const ProfilePage = () => {
         justifyContent: "center",
         alignItems: "center",
         px: 2,
+        position: "relative",
       }}
     >
+      <Button
+        variant="outlined"
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate(-1)}
+        sx={{
+          position: "absolute",
+          top: 20,
+          left: 20,
+          borderColor: "#243b55",
+          color: "#243b55",
+          textTransform: "none",
+          fontWeight: 600,
+          bgcolor: "#ffffffcc",
+          backdropFilter: "blur(6px)",
+          zIndex: 10,
+          "&:hover": {
+            bgcolor: "#ffffff",
+            borderColor: "#243b55",
+          },
+        }}
+      >
+        Back
+      </Button>
+
       <Box
         sx={{
           background: "#fff",
@@ -302,7 +328,7 @@ const ProfilePage = () => {
                   console.error("Failed to change password", e);
                   console.log(
                     "🔒 change-password status:",
-                    e?.response?.status,
+                    e?.response?.status
                   );
                   console.log("🔒 change-password data:", e?.response?.data);
 

@@ -6,6 +6,7 @@ import RegisterPage from "./pages/RegisterPage";
 import FeedPage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import MyPostsPage from "./pages/MyPostsPage";
+import PostCommentsPage from "./pages/PostCommentsPage";
 
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
   const token = localStorage.getItem("token");
@@ -81,6 +82,15 @@ function App() {
           element={
             <ProtectedRoute>
               <MyPostsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/posts/:postId/comments"
+          element={
+            <ProtectedRoute>
+              <PostCommentsPage />
             </ProtectedRoute>
           }
         />

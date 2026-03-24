@@ -16,7 +16,8 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import CommentsDialog from "../components/CommentsDialog";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useNavigate } from "react-router-dom";
 
 type Post = {
   _id: string;
@@ -32,10 +33,6 @@ const MyPostsPage = () => {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
     {},
   );
-  const [dialogPost, setDialogPost] = useState<{
-    id: string;
-    title: string;
-  } | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -44,6 +41,8 @@ const MyPostsPage = () => {
   const [editReview, setEditReview] = useState("");
   const [editImage, setEditImage] = useState<File | null>(null);
   const [removeEditImage, setRemoveEditImage] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchMyPosts = async () => {
@@ -76,14 +75,6 @@ const MyPostsPage = () => {
 
     if (posts.length) fetchCounts();
   }, [posts]);
-
-  const handleCommentAdded = () => {
-    if (!dialogPost) return;
-    setCommentCounts((prev) => ({
-      ...prev,
-      [dialogPost.id]: (prev[dialogPost.id] || 0) + 1,
-    }));
-  };
 
   const handleOpenEdit = (post: Post) => {
     setEditingPost(post);
@@ -158,7 +149,38 @@ const MyPostsPage = () => {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", background: "#e3eaf2", py: 4 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "#e3eaf2",
+        py: 4,
+        position: "relative",
+      }}
+    >
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate(-1)}
+        variant="outlined"
+        sx={{
+          position: "absolute",
+          top: 20,
+          left: 20,
+          borderColor: "#243b55",
+          color: "#243b55",
+          textTransform: "none",
+          fontWeight: 600,
+          bgcolor: "#ffffffcc",
+          backdropFilter: "blur(6px)",
+          zIndex: 10,
+          "&:hover": {
+            bgcolor: "#ffffff",
+            borderColor: "#243b55",
+          },
+        }}
+      >
+        Back
+      </Button>
+
       <Container maxWidth="md">
         <Typography
           variant="h4"
@@ -278,7 +300,7 @@ const MyPostsPage = () => {
                       size="small"
                       startIcon={<ChatBubbleOutlineIcon />}
                       onClick={() =>
-                        setDialogPost({ id: post._id, title: post.title })
+                        navigate(`/posts/${post._id}/comments`)
                       }
                     >
                       {commentCounts[post._id] ?? 0}
@@ -290,14 +312,6 @@ const MyPostsPage = () => {
           </Stack>
         )}
       </Container>
-
-      <CommentsDialog
-        open={!!dialogPost}
-        postId={dialogPost?.id || ""}
-        title={dialogPost?.title || ""}
-        onClose={() => setDialogPost(null)}
-        onCommentAdded={handleCommentAdded}
-      />
 
       <Modal open={editOpen} onClose={handleCloseEdit}>
         <Box
