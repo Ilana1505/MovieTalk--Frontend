@@ -11,6 +11,7 @@ import {
   Paper,
   Stack,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -30,11 +31,22 @@ interface Post {
   likes?: string[];
 }
 
+interface PostsResponse {
+  posts: Post[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
+
+const PAGE_SIZE = 5;
+const API_BASE_URL = "http://localhost:3000";
+
 const toAbsolute = (url?: string | null) =>
   url
     ? url.startsWith("http")
       ? url
-      : `http://localhost:3000${url}`
+      : `${API_BASE_URL}${url}`
     : undefined;
 
 const HomePage: React.FC = () => {
@@ -51,41 +63,75 @@ const HomePage: React.FC = () => {
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [profileImageError, setProfileImageError] = useState(false);
   const [userId, setUserId] = useState<string>("");
-  const [commentCounts, setCommentCounts] = useState<{
-    [postId: string]: number;
-  }>({});
-  const [active, setActive] = useState<{ id: string; title: string } | null>(
-    null,
-  );
+  const [commentCounts, setCommentCounts] = useState<{ [postId: string]: number }>({});
+  const [active, setActive] = useState<{ id: string; title: string } | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(false);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadProfileThenPosts = async () => {
       await fetchUserProfile();
-      await fetchPosts();
+      await fetchPosts(1, false);
     };
+
     loadProfileThenPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (posts.length > 0) fetchCommentCounts();
+    if (posts.length > 0) {
+      fetchCommentCounts();
+    } else {
+      setCommentCounts({});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posts]);
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (pageToLoad = 1, append = false) => {
     try {
-      const res = await axios.get("/posts");
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoadingPosts(true);
+      }
 
-      const sorted = [...res.data].sort((a: any, b: any) =>
-        (b._id || "").localeCompare(a._id || ""),
-      );
+      const res = await axios.get<PostsResponse>("/posts", {
+        params: {
+          page: pageToLoad,
+          limit: PAGE_SIZE,
+        },
+      });
 
-      setPosts(sorted);
+      const newPosts = res.data.posts || [];
+
+      setPosts((prev) => {
+        if (!append) return newPosts;
+
+        const existingIds = new Set(prev.map((post) => post._id));
+        const uniqueNewPosts = newPosts.filter((post) => !existingIds.has(post._id));
+        return [...prev, ...uniqueNewPosts];
+      });
+
+      setPage(res.data.page);
+      setHasMore(res.data.hasMore);
+      setIsSearchMode(false);
     } catch (err) {
       console.error("Failed to fetch posts", err);
+    } finally {
+      setLoadingPosts(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMorePosts = async () => {
+    if (loadingMore || !hasMore || isSearchMode) return;
+    await fetchPosts(page + 1, true);
   };
 
   const fetchUserProfile = async () => {
@@ -113,18 +159,25 @@ const HomePage: React.FC = () => {
   };
 
   const fetchCommentCounts = async () => {
-    const counts: { [key: string]: number } = {};
-    for (const post of posts) {
-      const res = await axios.get(`/comments/post/${post._id}`);
-      counts[post._id] = res.data.length;
+    try {
+      const counts: { [key: string]: number } = {};
+
+      await Promise.all(
+        posts.map(async (post) => {
+          const res = await axios.get(`/comments/post/${post._id}`);
+          counts[post._id] = res.data.length;
+        })
+      );
+
+      setCommentCounts(counts);
+    } catch (err) {
+      console.error("Failed to fetch comment counts", err);
     }
-    setCommentCounts(counts);
   };
 
   const handleLike = async (postId: string) => {
     try {
       const res = await axios.post(`/posts/${postId}/like`, {});
-
       const { message } = res.data;
 
       setPosts((prevPosts) =>
@@ -137,8 +190,8 @@ const HomePage: React.FC = () => {
                     ? [...(post.likes || []), userId]
                     : (post.likes || []).filter((id) => id !== userId),
               }
-            : post,
-        ),
+            : post
+        )
       );
     } catch (err) {
       console.error("Failed to toggle like", err);
@@ -151,7 +204,10 @@ const HomePage: React.FC = () => {
       formData.append("title", title);
       formData.append("description", description);
       formData.append("review", review);
-      if (imageFile) formData.append("image", imageFile);
+
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
 
       await axios.post("/posts", formData, {
         headers: {
@@ -164,19 +220,22 @@ const HomePage: React.FC = () => {
       setReview("");
       setImageFile(null);
       setOpen(false);
-      fetchPosts();
+
+      await fetchPosts(1, false);
     } catch (err) {
       console.error("Failed to create post", err);
     }
   };
 
-  const openComments = (post: Post) =>
+  const openComments = (post: Post) => {
     setActive({ id: post._id, title: post.title });
+  };
 
   const closeComments = () => setActive(null);
 
   const bumpCommentsCount = () => {
     if (!active) return;
+
     setCommentCounts((prev) => ({
       ...prev,
       [active.id]: (prev[active.id] || 0) + 1,
@@ -187,29 +246,21 @@ const HomePage: React.FC = () => {
     try {
       setAiSearchLoading(true);
 
-      console.log("=== AI SEARCH START ===");
-      console.log("Query:", aiQuery);
-
       const res = await axios.post("/ai/free-search", { query: aiQuery });
-
-      console.log("AI SEARCH RESPONSE status:", res.status);
-      console.log("AI SEARCH RESPONSE data:", res.data);
-
       const results = Array.isArray(res.data) ? res.data : res.data?.results;
 
       if (!Array.isArray(results)) {
-        console.warn("Unexpected response shape, expected results array.");
         alert("Search response format is invalid");
         return;
       }
 
       setPosts(results);
+      setHasMore(false);
+      setIsSearchMode(true);
 
       if (results.length === 0) {
         alert("No results found for this query");
       }
-
-      console.log("=== AI SEARCH END ===");
     } catch (e: any) {
       console.log("=== AI SEARCH ERROR ===");
       console.log("Status:", e?.response?.status);
@@ -223,7 +274,11 @@ const HomePage: React.FC = () => {
 
   const resetSearch = async () => {
     setAiQuery("");
-    await fetchPosts();
+    setPosts([]);
+    setPage(1);
+    setHasMore(true);
+    setIsSearchMode(false);
+    await fetchPosts(1, false);
   };
 
   const generateDescriptionWithAI = async () => {
@@ -231,7 +286,6 @@ const HomePage: React.FC = () => {
       setAiLoading(true);
 
       const res = await axios.post("/ai/generate-description", { title });
-
       setDescription(res.data.description);
     } catch (e: any) {
       alert(e?.response?.data?.message || "AI failed");
@@ -252,10 +306,7 @@ const HomePage: React.FC = () => {
     >
       <IconButton
         onClick={() => {
-          console.log(
-            "🏠 going profile. token=",
-            localStorage.getItem("token"),
-          );
+          console.log("🏠 going profile. token=", localStorage.getItem("token"));
           navigate("/profile");
         }}
         sx={{ position: "absolute", top: 20, left: 20 }}
@@ -346,105 +397,139 @@ const HomePage: React.FC = () => {
           </Stack>
         </Box>
 
-        <Stack spacing={2}>
-          {posts.map((post) => {
-            const hasLiked = post.likes?.includes(userId);
-            return (
-              <Paper
-                key={post._id}
-                elevation={4}
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  backgroundColor: "#f9f9f9",
-                  color: "#111",
-                  display: "flex",
-                  gap: 2,
-                  alignItems: "flex-start",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                {post.image && (
-                  <Box
-                    component="img"
-                    src={`http://localhost:3000${post.image}`}
-                    alt={post.title}
-                    sx={{
-                      width: 100,
-                      height: 140,
-                      objectFit: "cover",
-                      borderRadius: 2,
-                      boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
+        {loadingPosts && posts.length === 0 ? (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Stack spacing={2}>
+            {posts.map((post) => {
+              const hasLiked = post.likes?.includes(userId);
 
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    {post.title}
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                    <strong style={{ color: "#000" }}>Description:</strong>{" "}
-                    <span style={{ color: "#6b7280" }}>{post.description}</span>
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    mt={1}
-                    sx={{ whiteSpace: "pre-line" }}
-                  >
-                    <strong style={{ color: "#000" }}>Review:</strong>{" "}
-                    <span style={{ color: "#6b7280" }}>{post.review}</span>
-                  </Typography>
-
-                  <Box sx={{ mt: 4, display: "flex", gap: 1 }}>
-                    <Button
-                      onClick={() => handleLike(post._id)}
-                      variant="outlined"
-                      size="small"
-                      startIcon={
-                        hasLiked ? (
-                          <FavoriteIcon sx={{ color: "#e91e63" }} />
-                        ) : (
-                          <FavoriteBorderIcon sx={{ color: "#e91e63" }} />
-                        )
-                      }
+              return (
+                <Paper
+                  key={post._id}
+                  elevation={4}
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    backgroundColor: "#f9f9f9",
+                    color: "#111",
+                    display: "flex",
+                    gap: 2,
+                    alignItems: "flex-start",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {post.image && (
+                    <Box
+                      component="img"
+                      src={toAbsolute(post.image)}
+                      alt={post.title}
                       sx={{
-                        borderColor: "#e91e63",
-                        color: "#e91e63",
-                        fontWeight: 600,
-                        borderRadius: 999,
-                        px: 2,
-                        textTransform: "none",
+                        width: 100,
+                        height: 140,
+                        objectFit: "cover",
+                        borderRadius: 2,
+                        boxShadow: "2px 2px 8px rgba(0,0,0,0.2)",
+                        flexShrink: 0,
                       }}
-                    >
-                      {post.likes?.length || 0}
-                    </Button>
+                    />
+                  )}
 
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<ChatBubbleOutlineIcon />}
-                      onClick={() => openComments(post)}
-                      sx={{
-                        borderColor: "#607d8b",
-                        color: "#607d8b",
-                        fontWeight: 600,
-                        borderRadius: 999,
-                        px: 2,
-                        textTransform: "none",
-                      }}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                      {post.title}
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
+                      <strong style={{ color: "#000" }}>Description:</strong>{" "}
+                      <span style={{ color: "#6b7280" }}>{post.description}</span>
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      mt={1}
+                      sx={{ whiteSpace: "pre-line" }}
                     >
-                      ({commentCounts[post._id] || 0}) Comments
-                    </Button>
+                      <strong style={{ color: "#000" }}>Review:</strong>{" "}
+                      <span style={{ color: "#6b7280" }}>{post.review}</span>
+                    </Typography>
+
+                    <Box sx={{ mt: 4, display: "flex", gap: 1 }}>
+                      <Button
+                        onClick={() => handleLike(post._id)}
+                        variant="outlined"
+                        size="small"
+                        startIcon={
+                          hasLiked ? (
+                            <FavoriteIcon sx={{ color: "#e91e63" }} />
+                          ) : (
+                            <FavoriteBorderIcon sx={{ color: "#e91e63" }} />
+                          )
+                        }
+                        sx={{
+                          borderColor: "#e91e63",
+                          color: "#e91e63",
+                          fontWeight: 600,
+                          borderRadius: 999,
+                          px: 2,
+                          textTransform: "none",
+                        }}
+                      >
+                        {post.likes?.length || 0}
+                      </Button>
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<ChatBubbleOutlineIcon />}
+                        onClick={() => openComments(post)}
+                        sx={{
+                          borderColor: "#607d8b",
+                          color: "#607d8b",
+                          fontWeight: 600,
+                          borderRadius: 999,
+                          px: 2,
+                          textTransform: "none",
+                        }}
+                      >
+                        ({commentCounts[post._id] || 0}) Comments
+                      </Button>
+                    </Box>
                   </Box>
-                </Box>
-              </Paper>
-            );
-          })}
-        </Stack>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
+
+        {!loadingPosts && posts.length === 0 && (
+          <Typography align="center" sx={{ mt: 4, color: "#243b55" }}>
+            No posts found
+          </Typography>
+        )}
+
+        {!isSearchMode && hasMore && posts.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+            <Button
+              variant="contained"
+              onClick={loadMorePosts}
+              disabled={loadingMore}
+              sx={{
+                bgcolor: "#243b55",
+                px: 4,
+                py: 1,
+                borderRadius: 999,
+                textTransform: "none",
+                fontWeight: 700,
+                "&:hover": { bgcolor: "#1b2c3a" },
+              }}
+            >
+              {loadingMore ? "Loading..." : "Load More"}
+            </Button>
+          </Box>
+        )}
       </Container>
 
       <Fab
@@ -559,7 +644,9 @@ const HomePage: React.FC = () => {
                 accept="image/*"
                 hidden
                 onChange={(e) => {
-                  if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+                  if (e.target.files?.[0]) {
+                    setImageFile(e.target.files[0]);
+                  }
                 }}
               />
             </Button>
