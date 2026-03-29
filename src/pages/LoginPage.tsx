@@ -9,43 +9,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const saveAuthToLocalStorage = (data: any) => {
-    console.log("🟦 login response data:", data);
 
-    const accessToken = data?.accessToken;
-    const refreshToken = data?.refreshToken;
-
-    console.log("🟦 accessToken:", accessToken);
-    console.log("🟦 refreshToken:", refreshToken);
-
-    // ✅ אם אין טוקן תקין - לא שומרים כלום
-    if (!accessToken || typeof accessToken !== "string") {
-      console.log("🟥 Missing accessToken -> NOT saving token");
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      return;
-    }
-
-    localStorage.setItem("token", accessToken);
-
-    if (refreshToken && typeof refreshToken === "string") {
-      localStorage.setItem("refreshToken", refreshToken);
-    } else {
-      localStorage.removeItem("refreshToken");
-    }
-
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        _id: data?._id,
-        email: data?.email,
-        fullName: data?.fullName,
-        profilePicture: data?.profilePicture,
-      })
-    );
-
-    console.log("🟦 token saved in LS:", localStorage.getItem("token"));
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
   e.preventDefault();

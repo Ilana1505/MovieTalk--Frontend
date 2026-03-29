@@ -299,9 +299,7 @@ const MyPostsPage = () => {
                       variant="outlined"
                       size="small"
                       startIcon={<ChatBubbleOutlineIcon />}
-                      onClick={() =>
-                        navigate(`/posts/${post._id}/comments`)
-                      }
+                      onClick={() => navigate(`/posts/${post._id}/comments`)}
                     >
                       {commentCounts[post._id] ?? 0}
                     </Button>

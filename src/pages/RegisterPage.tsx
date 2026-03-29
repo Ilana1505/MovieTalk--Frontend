@@ -13,7 +13,6 @@ const RegisterPage = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
     if (!fullName.trim().includes(" ")) {
       alert("Please enter your full name (first and last name)");
       return;
@@ -32,7 +31,6 @@ const RegisterPage = () => {
     try {
       await axios.post("/auth/register", { fullName, email, password });
       alert("Registration successful!");
-      // ✅ אחרי הרשמה מוצלחת מעבירים למסך התחברות
       navigate("/login");
     } catch (err: any) {
       alert(err.response?.data?.error || "Registration failed");
