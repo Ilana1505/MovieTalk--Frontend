@@ -11,6 +11,7 @@ import {
   Typography,
   CircularProgress,
 } from "@mui/material";
+import { toAbsoluteUrl } from "../utils/url"; 
 
 type Post = {
   _id: string;
@@ -29,15 +30,6 @@ type Comment = {
   createdAt?: string;
 };
 
-const API_BASE_URL = "http://localhost:3000";
-
-const toAbsolute = (url?: string | null) =>
-  url
-    ? url.startsWith("http")
-      ? url
-      : `${API_BASE_URL}${url}`
-    : undefined;
-
 const PostCommentsPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
@@ -54,7 +46,6 @@ const PostCommentsPage: React.FC = () => {
 
     fetchPost();
     fetchComments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   const fetchPost = async () => {
@@ -112,25 +103,25 @@ const PostCommentsPage: React.FC = () => {
     >
       <Container maxWidth="sm">
         <Button
-  variant="outlined"
-  onClick={() => navigate(-1)}
-  sx={{
-    position: "absolute",
-    top: 20,
-    left: 20,
-    borderColor: "#243b55",
-    color: "#243b55",
-    textTransform: "none",
-    fontWeight: 600,
-    bgcolor: "#ffffffcc",
-    backdropFilter: "blur(6px)",
-    "&:hover": {
-      bgcolor: "#ffffff",
-    },
-  }}
->
-  Back
-</Button>
+          variant="outlined"
+          onClick={() => navigate(-1)}
+          sx={{
+            position: "absolute",
+            top: 20,
+            left: 20,
+            borderColor: "#243b55",
+            color: "#243b55",
+            textTransform: "none",
+            fontWeight: 600,
+            bgcolor: "#ffffffcc",
+            backdropFilter: "blur(6px)",
+            "&:hover": {
+              bgcolor: "#ffffff",
+            },
+          }}
+        >
+          Back
+        </Button>
 
         <Typography
           variant="h4"
@@ -166,7 +157,7 @@ const PostCommentsPage: React.FC = () => {
             {post.image && (
               <Box
                 component="img"
-                src={toAbsolute(post.image)}
+                src={toAbsoluteUrl(post.image)} 
                 alt={post.title}
                 sx={{
                   width: 100,
