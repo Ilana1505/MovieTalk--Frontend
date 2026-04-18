@@ -14,6 +14,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ImageIcon from "@mui/icons-material/Image";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
+import { toAbsoluteUrl } from "../utils/url";
 
 type UserProfile = {
   fullName: string;
@@ -22,12 +23,7 @@ type UserProfile = {
   profilePicture?: string | null;
 };
 
-const toAbsolute = (url?: string | null) =>
-  url
-    ? url.startsWith("http")
-      ? url
-      : `http://localhost:3000${url}`
-    : undefined;
+const toAbsolute = (url?: string | null) => toAbsoluteUrl(url);
 
 const ProfilePage = () => {
   const [user, setUser] = useState<UserProfile>({

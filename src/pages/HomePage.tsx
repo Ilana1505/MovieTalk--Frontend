@@ -19,6 +19,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { useNavigate } from "react-router-dom";
+import { toAbsoluteUrl } from "../utils/url";
 
 interface Post {
   _id: string;
@@ -39,14 +40,7 @@ interface PostsResponse {
 }
 
 const PAGE_SIZE = 5;
-const API_BASE_URL = "http://localhost:3000";
-
-const toAbsolute = (url?: string | null) =>
-  url
-    ? url.startsWith("http")
-      ? url
-      : `${API_BASE_URL}${url}`
-    : undefined;
+const toAbsolute = (url?: string | null) => toAbsoluteUrl(url);
 
 const HomePage: React.FC = () => {
   const [aiQuery, setAiQuery] = useState("");
