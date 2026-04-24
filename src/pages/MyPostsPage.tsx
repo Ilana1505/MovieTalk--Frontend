@@ -28,6 +28,14 @@ type Post = {
   likes?: string[];
 };
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
+
+const toAbsoluteUrl = (path?: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${API_BASE_URL}${path}`;
+};
+
 const MyPostsPage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
@@ -56,12 +64,14 @@ const MyPostsPage = () => {
         console.error("Failed to fetch my posts", err);
       }
     };
+
     fetchMyPosts();
   }, []);
 
   useEffect(() => {
     const fetchCounts = async () => {
       const next: Record<string, number> = {};
+
       for (const p of posts) {
         try {
           const res = await axios.get(`/comments/post/${p._id}`);
@@ -70,10 +80,13 @@ const MyPostsPage = () => {
           next[p._id] = 0;
         }
       }
+
       setCommentCounts(next);
     };
 
-    if (posts.length) fetchCounts();
+    if (posts.length) {
+      fetchCounts();
+    }
   }, [posts]);
 
   const handleOpenEdit = (post: Post) => {
@@ -128,7 +141,9 @@ const MyPostsPage = () => {
       formData.append("review", editReview);
       formData.append("removeImage", String(removeEditImage));
 
-      if (editImage) formData.append("image", editImage);
+      if (editImage) {
+        formData.append("image", editImage);
+      }
 
       const res = await axios.put(`/posts/${editingPost._id}`, formData, {
         headers: {
@@ -238,7 +253,7 @@ const MyPostsPage = () => {
                 {post.image && (
                   <Box
                     component="img"
-                    src={`http://localhost:3000${post.image}`}
+                    src={toAbsoluteUrl(post.image)}
                     alt={post.title}
                     sx={{
                       width: 100,
@@ -372,7 +387,8 @@ const MyPostsPage = () => {
             {editingPost?.image && !removeEditImage && !editImage && (
               <Box
                 component="img"
-                src={`http://localhost:3000${editingPost.image}`}
+                src={toAbsoluteUrl(editingPost.image)}
+                alt="Current post"
                 sx={{
                   width: 140,
                   height: 180,
@@ -386,6 +402,7 @@ const MyPostsPage = () => {
               <Box
                 component="img"
                 src={URL.createObjectURL(editImage)}
+                alt="Preview"
                 sx={{
                   width: 110,
                   height: 150,
